@@ -35,7 +35,9 @@ let fragmentoRevelado = false;
 let estamina = 150;
 let estaminaMaxima = 150;
 
-let textoHUD, textoTempo, textoCentro, textoEstamina;
+// Variáveis da Interface Visual
+let graficoEnergia, ponteiroRelogio;
+let textoHUD, textoCentro;
 let teclaEspaco;
 
 let posicoesOcupadas = []; 
@@ -66,13 +68,42 @@ function create() {
     carregarJogo();
 
     textoHUD = this.add.text(10, 10, '', { font: '22px Arial', fill: '#fff', fontStyle: 'bold' });
-    textoTempo = this.add.text(850, 10, 'Tempo: 100', { font: '28px Arial', fill: '#ff0000', fontStyle: 'bold' });
-    textoEstamina = this.add.text(850, 45, 'Energia: 100%', { font: '22px Arial', fill: '#00ff00', fontStyle: 'bold' });
     textoCentro = this.add.text(512, 384, '', { font: '45px Arial', fill: '#00ff00', fontStyle: 'bold', align: 'center' }).setOrigin(0.5);
+
+    // -----------------------------------------------------------------
+    // --- O NOVO RELÓGIO (NO CANTO SUPERIOR DIREITO) ---
+    // -----------------------------------------------------------------
+    let relogioX = 920; 
+    let relogioY = 100;
+
+    // 1. Fundo da Energia (Vermelho - Aparece quando gasta a verde)
+    let fundoEnergia = this.add.graphics();
+    fundoEnergia.lineStyle(12, 0xff0000, 1);
+    fundoEnergia.strokeCircle(relogioX, relogioY, 56);
+
+    // 2. Gráfico da Energia Atual (Verde - Vai desenhar por cima no Update)
+    graficoEnergia = this.add.graphics();
+
+    // 3. Face do Relógio (Marrom escuro da sua imagem)
+    this.add.circle(relogioX, relogioY, 50, 0xbf8b6e);
+
+    // 4. Marcadores pretos desenhados com linhas simples pra não dar erro (12, 3, 6, 9)
+    let marcadores = this.add.graphics({x: relogioX, y: relogioY});
+    marcadores.lineStyle(3, 0x000000, 1);
+    marcadores.lineBetween(0, -40, 0, -50); // 12h
+    marcadores.lineBetween(40, 0, 50, 0);   // 3h
+    marcadores.lineBetween(0, 40, 0, 50);   // 6h
+    marcadores.lineBetween(-40, 0, -50, 0); // 9h
+
+    // 5. O Ponteiro do tempo
+    ponteiroRelogio = this.add.line(relogioX, relogioY, 0, 0, 0, -42, 0x000000, 2).setOrigin(0, 0);
+    // -----------------------------------------------------------------
+
 
     grupoObjetos = this.physics.add.group();
     linhaCorda = this.add.graphics();
     
+    // A garra de volta pro meio certinho, sem relógio em cima dela!
     gancho = this.add.rectangle(512, 100, 25, 20, 0xffffff);
     this.physics.add.existing(gancho);
 
@@ -129,7 +160,6 @@ function montarFase() {
     else if (cenarioAtual === 3) this.cameras.main.setBackgroundColor('#b71c1c'); 
     
     atualizarHUD();
-    textoTempo.setText('Tempo: ' + tempoRestante);
     textoCentro.setText(''); 
 
     for(let i = 0; i < 18; i++) {
@@ -191,7 +221,6 @@ function spawnarFragmento() {
 function diminuirTempo() {
     if (jogoAcabou || esperandoProximaFase) return; 
     tempoRestante--;
-    textoTempo.setText('Tempo: ' + tempoRestante);
     if (tempoRestante <= 0) {
         jogoAcabou = true;
         textoCentro.setText('TEMPO ESGOTADO!\nGAME OVER.');
@@ -221,27 +250,35 @@ function update() {
     linhaCorda.strokePath();
 
     let radianos = Phaser.Math.DegToRad(anguloGancho);
-    
-    // --- LÓGICA DE BOTÃO SEPARADA ---
-    // JustDown: Checa só o clique exato (Usado pra atirar)
     let apertouBotao = Phaser.Input.Keyboard.JustDown(teclaEspaco) || this.input.activePointer.justDown;
-    // isDown: Checa se tá sendo segurado naquele frame (Usado pro Boost contínuo)
     let segurandoBotao = teclaEspaco.isDown || this.input.activePointer.isDown;
-
-    // A gente só tá dando boost se pegou a pedra, segurou o botão e tem no mínimo 1.5 de estamina sobrando
     let taDandoBoost = (estadoGancho === 'SUBINDO' && objetoPuxado && objetoPuxado.tipo === 'pedra_pesada' && segurandoBotao && estamina >= 1.5);
 
-    // Se NÃO estiver dando boost, a energia recupera de boa
     if (!taDandoBoost && estamina < estaminaMaxima) {
         estamina += 0.15; 
         if (estamina > estaminaMaxima) estamina = estaminaMaxima;
     }
 
-    let porcentagem = Math.floor((estamina / estaminaMaxima) * 100);
-    textoEstamina.setText(`Energia: ${porcentagem}%`);
-    if (porcentagem < 20) textoEstamina.setColor('#ff0000'); 
-    else if (porcentagem < 50) textoEstamina.setColor('#ffff00'); 
-    else textoEstamina.setColor('#00ff00'); 
+    // --- ATUALIZAÇÃO VISUAL DO RELÓGIO (TEMPO E ENERGIA) ---
+    // Gira o ponteiro
+    ponteiroRelogio.angle = -90 + ((100 - tempoRestante) / 100) * 360;
+
+    // Desenha o arco verde da energia
+    graficoEnergia.clear();
+    let porcentagemE = estamina / estaminaMaxima;
+    
+    if (porcentagemE > 0) {
+        // Se a energia abaixar de 20%, o resto da barra verde fica amarelo de aviso
+        if (porcentagemE < 0.20) graficoEnergia.lineStyle(12, 0xffff00, 1); 
+        else graficoEnergia.lineStyle(12, 0x00ff00, 1); 
+
+        graficoEnergia.beginPath();
+        // Desenha começando do topo (-Math.PI / 2) até a quantidade de energia atual
+        let anguloFim = (-Math.PI / 2) + (porcentagemE * 2 * Math.PI);
+        graficoEnergia.arc(920, 100, 56, -Math.PI / 2, anguloFim, false);
+        graficoEnergia.strokePath();
+    }
+    // -------------------------------------------------------
 
     if (estadoGancho === 'BALANCANDO') {
         if (apertouBotao) acaoPrincipal.call(this);
@@ -255,7 +292,7 @@ function update() {
         }
         
         gancho.x = 512 + Math.sin(radianos) * 170; 
-        gancho.y = 50 + Math.cos(radianos) * 100; 
+        gancho.y = 50 + Math.cos(radianos) * 100;  
         gancho.angle = -anguloGancho; 
     }
     else if (estadoGancho === 'DESCENDO') {
@@ -266,10 +303,9 @@ function update() {
     else if (estadoGancho === 'SUBINDO') {
         let velocidadeAtual = objetoPuxado ? velocidadeTiroPadrao / objetoPuxado.peso : velocidadeTiroPadrao * 1.5;
 
-        // --- O BOOST CONTÍNUO ACONTECE AQUI ---
         if (taDandoBoost) {
-            estamina -= 1.5; // Gasta a energia de forma suave por frame
-            gancho.x -= Math.sin(radianos) * 3.5; // Puxa 3.5 pixels constantes
+            estamina -= 1.5;
+            gancho.x -= Math.sin(radianos) * 3.5;
             gancho.y -= Math.cos(radianos) * 3.5;
         }
 
@@ -278,7 +314,6 @@ function update() {
             objetoPuxado.y = gancho.y;
         }
 
-        // Continua rodando a velocidade básica da pedra de fundo
         gancho.x -= Math.sin(radianos) * velocidadeAtual;
         gancho.y -= Math.cos(radianos) * velocidadeAtual;
 
@@ -287,7 +322,7 @@ function update() {
             if (objetoPuxado) {
                 if (objetoPuxado.tipo === 'moeda') {
                     moedasColetadas += objetoPuxado.valor;
-
+                    
                     if (moedasColetadas >= metaMoedas && !fragmentoRevelado) {
                         fragmentoRevelado = true;
                         spawnarFragmento.call(this);
