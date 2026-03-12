@@ -69,22 +69,18 @@ function create() {
     textoHUD = this.add.text(10, 10, '', { font: '22px Arial', fill: '#fff', fontStyle: 'bold' });
     textoCentro = this.add.text(512, 384, '', { font: '45px Arial', fill: '#00ff00', fontStyle: 'bold', align: 'center' }).setOrigin(0.5);
 
-    // --- RELÓGIO (AGORA NO CANTO CERTO E SEM TEXTO EM CIMA) ---
+    // --- RELÓGIO (NO CANTO CERTO) ---
     let cx = 920; 
     let cy = 100;
     
-    // Fundo da Energia (Vermelho - Aparece quando gasta a verde)
     let fundoEnergia = this.add.graphics();
     fundoEnergia.lineStyle(12, 0xff0000, 1);
     fundoEnergia.strokeCircle(cx, cy, 56);
 
-    // Gráfico da Energia Atual (Verde)
     graficoEnergia = this.add.graphics();
 
-    // Face do Relógio (Marrom escuro)
     this.add.circle(cx, cy, 50, 0xbf8b6e);
 
-    // Marcadores pretos (12, 3, 6, 9)
     let marcadores = this.add.graphics({x: cx, y: cy});
     marcadores.lineStyle(3, 0x000000, 1);
     marcadores.lineBetween(0, -40, 0, -50); 
@@ -98,7 +94,6 @@ function create() {
     grupoObjetos = this.physics.add.group();
     linhaCorda = this.add.graphics();
     
-    // Garra Menor e centralizada perfeitamente
     gancho = this.add.rectangle(512, 100, 25, 20, 0xffffff);
     this.physics.add.existing(gancho);
 
@@ -146,8 +141,9 @@ function montarFase() {
     estamina = 150; 
     fragmentoRevelado = false; 
 
+    // --- NERF DA PROGRESSÃO DA DIFICULDADE (Rampa Suave) ---
     let degrauDificuldade = ((cenarioAtual - 1) * 3) + (faseNoCenario - 1);
-    velocidadeBalanço = 1.0 + (degrauDificuldade * 0.4);
+    velocidadeBalanço = 1.0 + (degrauDificuldade * 0.15); // Era 0.4, agora é 0.15!
     if (velocidadeBalanço > velocidadeMaxima) velocidadeBalanço = velocidadeMaxima; 
 
     if (cenarioAtual === 1) this.cameras.main.setBackgroundColor('#3e2723'); 
@@ -282,7 +278,7 @@ function update() {
             if (anguloGancho <= -75) balancandoParaDireita = true;
         }
         
-        // --- A MÁGICA TÁ AQUI: Raio igual para X e Y ---
+        // --- SEU AJUSTE: Corda em 135px de Raio Perfeito ---
         let tamanhoDaCorda = 135; 
         
         gancho.x = 512 + Math.sin(radianos) * tamanhoDaCorda; 
