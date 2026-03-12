@@ -35,7 +35,8 @@ let fragmentoRevelado = false;
 let estamina = 150;
 let estaminaMaxima = 150;
 
-let graficoDrenagem, ponteiroRelogio, graficoMarcadores;
+// --- SUBSTITUÍ O PONTEIRO PELO GRÁFICO DA PIZZA ---
+let graficoDrenagem, graficoTempoPizza, graficoMarcadores;
 let textoHUD, textoCentro, textoEstamina;
 let teclaEspaco;
 
@@ -69,26 +70,31 @@ function create() {
     textoHUD = this.add.text(10, 10, '', { font: '22px Arial', fill: '#fff', fontStyle: 'bold' });
     textoCentro = this.add.text(512, 384, '', { font: '45px Arial', fill: '#00ff00', fontStyle: 'bold', align: 'center' }).setOrigin(0.5);
 
-    // --- RELÓGIO (NO CANTO CERTO) ---
+    // --- RELÓGIO PIZZA ---
     let cx = 920; 
     let cy = 100;
     
+    // Fundo da Energia (Vermelho)
     let fundoEnergia = this.add.graphics();
     fundoEnergia.lineStyle(12, 0xff0000, 1);
     fundoEnergia.strokeCircle(cx, cy, 56);
 
+    // Gráfico da Energia Atual (Verde)
     graficoEnergia = this.add.graphics();
 
+    // Face do Relógio (Marrom escuro)
     this.add.circle(cx, cy, 50, 0xbf8b6e);
 
+    // --- NOVO: A FATIA DE PIZZA DO TEMPO (Nasce invisível e cresce) ---
+    graficoTempoPizza = this.add.graphics({x: cx, y: cy});
+
+    // Marcadores pretos ficam POR CIMA da pizza
     let marcadores = this.add.graphics({x: cx, y: cy});
     marcadores.lineStyle(3, 0x000000, 1);
     marcadores.lineBetween(0, -40, 0, -50); 
     marcadores.lineBetween(40, 0, 50, 0);   
     marcadores.lineBetween(0, 40, 0, 50);   
     marcadores.lineBetween(-40, 0, -50, 0); 
-
-    ponteiroRelogio = this.add.line(cx, cy, 0, 0, 0, -42, 0x000000, 2).setOrigin(0, 0);
     // -------------------------------------------------------------
 
     grupoObjetos = this.physics.add.group();
@@ -141,9 +147,8 @@ function montarFase() {
     estamina = 150; 
     fragmentoRevelado = false; 
 
-    // --- NERF DA PROGRESSÃO DA DIFICULDADE (Rampa Suave) ---
     let degrauDificuldade = ((cenarioAtual - 1) * 3) + (faseNoCenario - 1);
-    velocidadeBalanço = 1.0 + (degrauDificuldade * 0.15); // Era 0.4, agora é 0.15!
+    velocidadeBalanço = 1.0 + (degrauDificuldade * 0.15); 
     if (velocidadeBalanço > velocidadeMaxima) velocidadeBalanço = velocidadeMaxima; 
 
     if (cenarioAtual === 1) this.cameras.main.setBackgroundColor('#3e2723'); 
@@ -251,9 +256,7 @@ function update() {
         if (estamina > estaminaMaxima) estamina = estaminaMaxima;
     }
 
-    // --- ATUALIZAÇÃO VISUAL DO RELÓGIO E ENERGIA ---
-    ponteiroRelogio.angle = -90 + ((100 - tempoRestante) / 100) * 360;
-
+    // --- ATUALIZAÇÃO VISUAL: ENERGIA NA BORDA ---
     graficoEnergia.clear();
     let porcentagemE = estamina / estaminaMaxima;
     
@@ -262,10 +265,31 @@ function update() {
         else graficoEnergia.lineStyle(12, 0x00ff00, 1); 
 
         graficoEnergia.beginPath();
-        let anguloFim = (-Math.PI / 2) + (porcentagemE * 2 * Math.PI);
-        graficoEnergia.arc(920, 100, 56, -Math.PI / 2, anguloFim, false);
+        let anguloFimE = (-Math.PI / 2) + (porcentagemE * 2 * Math.PI);
+        graficoEnergia.arc(920, 100, 56, -Math.PI / 2, anguloFimE, false);
         graficoEnergia.strokePath();
     }
+
+    // --- ATUALIZAÇÃO VISUAL: PIZZA DO TEMPO ---
+    graficoTempoPizza.clear();
+    // Tempo total da fase é 100s. Quanto já perdemos?
+    let porcentagemTempoPerdido = (100 - tempoRestante) / 100;
+    
+    if (porcentagemTempoPerdido > 0) {
+        // Pinta a fatia de preto escuro com uma leve transparência
+        graficoTempoPizza.fillStyle(0x111111, 0.85);
+        graficoTempoPizza.beginPath();
+        graficoTempoPizza.moveTo(0, 0); // Vai pro centro
+        
+        let anguloInicioPizza = -Math.PI / 2; // Começa 12h
+        let anguloFimPizza = anguloInicioPizza + (porcentagemTempoPerdido * 2 * Math.PI);
+        
+        // Desenha o arco e fecha a "fatia"
+        graficoTempoPizza.arc(0, 0, 50, anguloInicioPizza, anguloFimPizza, false);
+        graficoTempoPizza.closePath();
+        graficoTempoPizza.fillPath();
+    }
+    // -------------------------------------------------------
 
     if (estadoGancho === 'BALANCANDO') {
         if (apertouBotao) acaoPrincipal.call(this);
@@ -278,7 +302,6 @@ function update() {
             if (anguloGancho <= -75) balancandoParaDireita = true;
         }
         
-        // --- SEU AJUSTE: Corda em 135px de Raio Perfeito ---
         let tamanhoDaCorda = 135; 
         
         gancho.x = 512 + Math.sin(radianos) * tamanhoDaCorda; 
