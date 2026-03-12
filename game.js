@@ -1,9 +1,13 @@
 const config = {
     type: Phaser.AUTO,
-    width: 1024, 
-    height: 768,
+    scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+        width: 1024,
+        height: 768
+    },
     parent: 'game-container', 
-    backgroundColor: '#333333',
+    backgroundColor: '#3e2723', 
     physics: { default: 'arcade', arcade: { debug: false } },
     fps: { target: 60, forceSetTimeOut: true },
     scene: { preload: preload, create: create, update: update }
@@ -13,20 +17,22 @@ const game = new Phaser.Game(config);
 
 let gancho, linhaCorda, grupoObjetos;
 let estadoGancho = 'BALANCANDO', anguloGancho = 0, balancandoParaDireita = true;
-let velocidadeBalanço = 1.0, velocidadeMaxima = 4.0, aumentoVelocidade = 0.2, velocidadeTiroPadrao = 8, objetoPuxado = null;
+// Tirei o "aumentoVelocidade" daqui, a gente vai calcular por fase agora
+let velocidadeBalanço = 1.0, velocidadeMaxima = 4.0, velocidadeTiroPadrao = 8, objetoPuxado = null;
 
 let moedasColetadas = 0;
 let metaMoedas = 25; 
-let fragmentosAtuais = 0;   
-let reliquiasCompletas = 0; 
-let faseAtual = 1;
+
+let cenarioAtual = 1;      
+let faseNoCenario = 1;     
+let fragmentosAtuais = 0;  
+let reliquiasCompletas = 0;
 
 let tempoRestante = 100;    
 let jogoAcabou = false;
 let esperandoProximaFase = false; 
 let fragmentoRevelado = false;
 
-// --- AQUI ESTÁ O BUFF DO JOGADOR ---
 let estamina = 150;
 let estaminaMaxima = 150;
 
@@ -35,9 +41,31 @@ let teclaEspaco;
 
 let posicoesOcupadas = []; 
 
+function salvarJogo() {
+    let save = { cenario: cenarioAtual, fase: faseNoCenario, fragmentos: fragmentosAtuais, reliquias: reliquiasCompletas };
+    localStorage.setItem('museuSave', JSON.stringify(save));
+}
+
+function carregarJogo() {
+    let saveText = localStorage.getItem('museuSave');
+    if (saveText) {
+        let data = JSON.parse(saveText);
+        cenarioAtual = data.cenario;
+        faseNoCenario = data.fase;
+        fragmentosAtuais = data.fragmentos;
+        reliquiasCompletas = data.reliquias;
+    }
+}
+
+function limparSave() {
+    localStorage.removeItem('museuSave');
+}
+
 function preload() {}
 
 function create() {
+    carregarJogo();
+
     textoHUD = this.add.text(10, 10, '', { font: '22px Arial', fill: '#fff', fontStyle: 'bold' });
     textoTempo = this.add.text(850, 10, 'Tempo: 100', { font: '28px Arial', fill: '#ff0000', fontStyle: 'bold' });
     textoEstamina = this.add.text(850, 45, 'Energia: 100%', { font: '22px Arial', fill: '#00ff00', fontStyle: 'bold' });
@@ -46,7 +74,8 @@ function create() {
     grupoObjetos = this.physics.add.group();
     linhaCorda = this.add.graphics();
     
-    gancho = this.add.rectangle(512, 100, 20, 20, 0xffffff);
+    // --- BUFF 1: GANCHO MAIOR (De 20x20 para 40x30) ---
+    gancho = this.add.rectangle(512, 100, 25, 20, 0xffffff);
     this.physics.add.existing(gancho);
 
     this.physics.add.overlap(gancho, grupoObjetos, pegarObjeto, null, this);
@@ -59,8 +88,7 @@ function create() {
 }
 
 function atualizarHUD() {
-    // Corrigido: Adicionado backticks (crases) para interpolação de string
-    textoHUD.setText(`Fase: ${faseAtual} | Pontos: ${moedasColetadas}/${metaMoedas}\nFragmentos: ${fragmentosAtuais}/3 | Relíquias: ${reliquiasCompletas}/3`);
+    textoHUD.setText(`Cenário: ${cenarioAtual} - Fase: ${faseNoCenario} | Pontos: ${moedasColetadas}/${metaMoedas}\nFragmentos: ${fragmentosAtuais}/3 | Inventário: ${reliquiasCompletas}/3`);
 }
 
 function acharPosicaoValida(raioNovoItem) {
@@ -91,9 +119,18 @@ function montarFase() {
     moedasColetadas = 0;
     
     tempoRestante = 100; 
-    velocidadeBalanço = 1.0;
     estamina = 150; 
     fragmentoRevelado = false; 
+
+    // --- BUFF 2: VELOCIDADE SOBE SÓ NAS PRÓXIMAS FASES ---
+    // A cada fase que você avança, a velocidade sobe +0.4. A Fase 1 fica com 1.0 cravado!
+    let degrauDificuldade = ((cenarioAtual - 1) * 3) + (faseNoCenario - 1);
+    velocidadeBalanço = 1.0 + (degrauDificuldade * 0.4);
+    if (velocidadeBalanço > velocidadeMaxima) velocidadeBalanço = velocidadeMaxima; // Trava no limite
+
+    if (cenarioAtual === 1) this.cameras.main.setBackgroundColor('#3e2723'); 
+    else if (cenarioAtual === 2) this.cameras.main.setBackgroundColor('#1a237e'); 
+    else if (cenarioAtual === 3) this.cameras.main.setBackgroundColor('#b71c1c'); 
     
     atualizarHUD();
     textoTempo.setText('Tempo: ' + tempoRestante);
@@ -163,6 +200,7 @@ function diminuirTempo() {
         jogoAcabou = true;
         textoCentro.setText('TEMPO ESGOTADO!\nGAME OVER.');
         textoCentro.setColor('#ff0000');
+        limparSave(); 
     }
 }
 
@@ -195,7 +233,6 @@ function update() {
     }
 
     let porcentagem = Math.floor((estamina / estaminaMaxima) * 100);
-    // Corrigido: Adicionado backticks para mostrar a energia
     textoEstamina.setText(`Energia: ${porcentagem}%`);
     if (porcentagem < 20) textoEstamina.setColor('#ff0000'); 
     else if (porcentagem < 50) textoEstamina.setColor('#ffff00'); 
@@ -211,8 +248,11 @@ function update() {
             anguloGancho -= velocidadeBalanço;
             if (anguloGancho <= -75) balancandoParaDireita = true;
         }
-        gancho.x = 512 + Math.sin(radianos) * 50; 
-        gancho.y = 50 + Math.cos(radianos) * 50;
+        
+        // --- BUFF 3: CORDA MAIOR (A garra balança mais pra baixo, dando mais alcance) ---
+        // Era * 50, aumentei pra * 80!
+        gancho.x = 512 + Math.sin(radianos) * 170; 
+        gancho.y = 50 + Math.cos(radianos) * 150; 
         gancho.angle = -anguloGancho; 
     }
     else if (estadoGancho === 'DESCENDO') {
@@ -244,8 +284,9 @@ function update() {
             if (objetoPuxado) {
                 if (objetoPuxado.tipo === 'moeda') {
                     moedasColetadas += objetoPuxado.valor;
-                    if (velocidadeBalanço < velocidadeMaxima) velocidadeBalanço = Math.round((velocidadeBalanço + aumentoVelocidade) * 10) / 10; 
                     
+                    // APAGUEI AQUELE CÓDIGO QUE AUMENTAVA A VELOCIDADE AQUI! Agora ela fica suave o round todo.
+
                     if (moedasColetadas >= metaMoedas && !fragmentoRevelado) {
                         fragmentoRevelado = true;
                         spawnarFragmento.call(this);
@@ -253,23 +294,30 @@ function update() {
                 } 
                 else if (objetoPuxado.tipo === 'fragmento') {
                     fragmentosAtuais++;
-                    faseAtual++;
+                    faseNoCenario++; 
+                    
                     if (fragmentosAtuais >= 3) {
                         reliquiasCompletas++;
+                        cenarioAtual++;
                         fragmentosAtuais = 0; 
+                        faseNoCenario = 1; 
+                        
                         if (reliquiasCompletas >= 3) {
                             jogoAcabou = true;
-                            textoCentro.setText('PARABÉNS! VOCÊ ZEROU O JOGO!\n3 Relíquias Completas!');
+                            textoCentro.setText('PARABÉNS! VOCÊ ZEROU O MUSEU!\n3 Relíquias no Inventário!');
                             textoCentro.setColor('#00ff00');
+                            limparSave(); 
                         } else {
-                            textoCentro.setText('RELÍQUIA COMPLETA!\nClique para a próxima Fase.');
+                            textoCentro.setText(`CENÁRIO CONCLUÍDO!\nRelíquia guardada no Inventário.\nClique para iniciar o Cenário ${cenarioAtual}.`);
                             textoCentro.setColor('#00ff00');
                             esperandoProximaFase = true; 
+                            salvarJogo(); 
                         }
                     } else {
-                        textoCentro.setText('FRAGMENTO CAPTURADO!\nClique para a próxima Fase.');
+                        textoCentro.setText(`FRAGMENTO CAPTURADO!\nFase ${faseNoCenario} liberada.\nClique para continuar.`);
                         textoCentro.setColor('#00ff00');
                         esperandoProximaFase = true; 
+                        salvarJogo(); 
                     }
                 }
                 objetoPuxado.destroy(); 
