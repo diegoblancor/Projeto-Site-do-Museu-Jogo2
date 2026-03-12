@@ -17,7 +17,6 @@ const game = new Phaser.Game(config);
 
 let gancho, linhaCorda, grupoObjetos;
 let estadoGancho = 'BALANCANDO', anguloGancho = 0, balancandoParaDireita = true;
-// Tirei o "aumentoVelocidade" daqui, a gente vai calcular por fase agora
 let velocidadeBalanço = 1.0, velocidadeMaxima = 4.0, velocidadeTiroPadrao = 8, objetoPuxado = null;
 
 let moedasColetadas = 0;
@@ -74,7 +73,6 @@ function create() {
     grupoObjetos = this.physics.add.group();
     linhaCorda = this.add.graphics();
     
-    // --- BUFF 1: GANCHO MAIOR (De 20x20 para 40x30) ---
     gancho = this.add.rectangle(512, 100, 25, 20, 0xffffff);
     this.physics.add.existing(gancho);
 
@@ -122,11 +120,9 @@ function montarFase() {
     estamina = 150; 
     fragmentoRevelado = false; 
 
-    // --- BUFF 2: VELOCIDADE SOBE SÓ NAS PRÓXIMAS FASES ---
-    // A cada fase que você avança, a velocidade sobe +0.4. A Fase 1 fica com 1.0 cravado!
     let degrauDificuldade = ((cenarioAtual - 1) * 3) + (faseNoCenario - 1);
     velocidadeBalanço = 1.0 + (degrauDificuldade * 0.4);
-    if (velocidadeBalanço > velocidadeMaxima) velocidadeBalanço = velocidadeMaxima; // Trava no limite
+    if (velocidadeBalanço > velocidadeMaxima) velocidadeBalanço = velocidadeMaxima; 
 
     if (cenarioAtual === 1) this.cameras.main.setBackgroundColor('#3e2723'); 
     else if (cenarioAtual === 2) this.cameras.main.setBackgroundColor('#1a237e'); 
@@ -225,9 +221,18 @@ function update() {
     linhaCorda.strokePath();
 
     let radianos = Phaser.Math.DegToRad(anguloGancho);
+    
+    // --- LÓGICA DE BOTÃO SEPARADA ---
+    // JustDown: Checa só o clique exato (Usado pra atirar)
     let apertouBotao = Phaser.Input.Keyboard.JustDown(teclaEspaco) || this.input.activePointer.justDown;
+    // isDown: Checa se tá sendo segurado naquele frame (Usado pro Boost contínuo)
+    let segurandoBotao = teclaEspaco.isDown || this.input.activePointer.isDown;
 
-    if (estamina < estaminaMaxima) {
+    // A gente só tá dando boost se pegou a pedra, segurou o botão e tem no mínimo 1.5 de estamina sobrando
+    let taDandoBoost = (estadoGancho === 'SUBINDO' && objetoPuxado && objetoPuxado.tipo === 'pedra_pesada' && segurandoBotao && estamina >= 1.5);
+
+    // Se NÃO estiver dando boost, a energia recupera de boa
+    if (!taDandoBoost && estamina < estaminaMaxima) {
         estamina += 0.15; 
         if (estamina > estaminaMaxima) estamina = estaminaMaxima;
     }
@@ -249,10 +254,8 @@ function update() {
             if (anguloGancho <= -75) balancandoParaDireita = true;
         }
         
-        // --- BUFF 3: CORDA MAIOR (A garra balança mais pra baixo, dando mais alcance) ---
-        // Era * 50, aumentei pra * 80!
         gancho.x = 512 + Math.sin(radianos) * 170; 
-        gancho.y = 50 + Math.cos(radianos) * 150; 
+        gancho.y = 50 + Math.cos(radianos) * 100; 
         gancho.angle = -anguloGancho; 
     }
     else if (estadoGancho === 'DESCENDO') {
@@ -263,12 +266,11 @@ function update() {
     else if (estadoGancho === 'SUBINDO') {
         let velocidadeAtual = objetoPuxado ? velocidadeTiroPadrao / objetoPuxado.peso : velocidadeTiroPadrao * 1.5;
 
-        if (objetoPuxado && objetoPuxado.tipo === 'pedra_pesada' && apertouBotao) {
-            if (estamina >= 10) {
-                estamina -= 10;
-                gancho.x -= Math.sin(radianos) * 25;
-                gancho.y -= Math.cos(radianos) * 25;
-            }
+        // --- O BOOST CONTÍNUO ACONTECE AQUI ---
+        if (taDandoBoost) {
+            estamina -= 1.5; // Gasta a energia de forma suave por frame
+            gancho.x -= Math.sin(radianos) * 3.5; // Puxa 3.5 pixels constantes
+            gancho.y -= Math.cos(radianos) * 3.5;
         }
 
         if (objetoPuxado) {
@@ -276,6 +278,7 @@ function update() {
             objetoPuxado.y = gancho.y;
         }
 
+        // Continua rodando a velocidade básica da pedra de fundo
         gancho.x -= Math.sin(radianos) * velocidadeAtual;
         gancho.y -= Math.cos(radianos) * velocidadeAtual;
 
@@ -284,8 +287,6 @@ function update() {
             if (objetoPuxado) {
                 if (objetoPuxado.tipo === 'moeda') {
                     moedasColetadas += objetoPuxado.valor;
-                    
-                    // APAGUEI AQUELE CÓDIGO QUE AUMENTAVA A VELOCIDADE AQUI! Agora ela fica suave o round todo.
 
                     if (moedasColetadas >= metaMoedas && !fragmentoRevelado) {
                         fragmentoRevelado = true;
