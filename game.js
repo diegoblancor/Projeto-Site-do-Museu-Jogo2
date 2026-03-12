@@ -35,9 +35,8 @@ let fragmentoRevelado = false;
 let estamina = 150;
 let estaminaMaxima = 150;
 
-// Variáveis da Interface Visual
-let graficoEnergia, ponteiroRelogio;
-let textoHUD, textoCentro;
+let graficoDrenagem, ponteiroRelogio, graficoMarcadores;
+let textoHUD, textoCentro, textoEstamina;
 let teclaEspaco;
 
 let posicoesOcupadas = []; 
@@ -70,40 +69,36 @@ function create() {
     textoHUD = this.add.text(10, 10, '', { font: '22px Arial', fill: '#fff', fontStyle: 'bold' });
     textoCentro = this.add.text(512, 384, '', { font: '45px Arial', fill: '#00ff00', fontStyle: 'bold', align: 'center' }).setOrigin(0.5);
 
-    // -----------------------------------------------------------------
-    // --- O NOVO RELÓGIO (NO CANTO SUPERIOR DIREITO) ---
-    // -----------------------------------------------------------------
-    let relogioX = 920; 
-    let relogioY = 100;
-
-    // 1. Fundo da Energia (Vermelho - Aparece quando gasta a verde)
+    // --- RELÓGIO (AGORA NO CANTO CERTO E SEM TEXTO EM CIMA) ---
+    let cx = 920; 
+    let cy = 100;
+    
+    // Fundo da Energia (Vermelho - Aparece quando gasta a verde)
     let fundoEnergia = this.add.graphics();
     fundoEnergia.lineStyle(12, 0xff0000, 1);
-    fundoEnergia.strokeCircle(relogioX, relogioY, 56);
+    fundoEnergia.strokeCircle(cx, cy, 56);
 
-    // 2. Gráfico da Energia Atual (Verde - Vai desenhar por cima no Update)
+    // Gráfico da Energia Atual (Verde)
     graficoEnergia = this.add.graphics();
 
-    // 3. Face do Relógio (Marrom escuro da sua imagem)
-    this.add.circle(relogioX, relogioY, 50, 0xbf8b6e);
+    // Face do Relógio (Marrom escuro)
+    this.add.circle(cx, cy, 50, 0xbf8b6e);
 
-    // 4. Marcadores pretos desenhados com linhas simples pra não dar erro (12, 3, 6, 9)
-    let marcadores = this.add.graphics({x: relogioX, y: relogioY});
+    // Marcadores pretos (12, 3, 6, 9)
+    let marcadores = this.add.graphics({x: cx, y: cy});
     marcadores.lineStyle(3, 0x000000, 1);
-    marcadores.lineBetween(0, -40, 0, -50); // 12h
-    marcadores.lineBetween(40, 0, 50, 0);   // 3h
-    marcadores.lineBetween(0, 40, 0, 50);   // 6h
-    marcadores.lineBetween(-40, 0, -50, 0); // 9h
+    marcadores.lineBetween(0, -40, 0, -50); 
+    marcadores.lineBetween(40, 0, 50, 0);   
+    marcadores.lineBetween(0, 40, 0, 50);   
+    marcadores.lineBetween(-40, 0, -50, 0); 
 
-    // 5. O Ponteiro do tempo
-    ponteiroRelogio = this.add.line(relogioX, relogioY, 0, 0, 0, -42, 0x000000, 2).setOrigin(0, 0);
-    // -----------------------------------------------------------------
-
+    ponteiroRelogio = this.add.line(cx, cy, 0, 0, 0, -42, 0x000000, 2).setOrigin(0, 0);
+    // -------------------------------------------------------------
 
     grupoObjetos = this.physics.add.group();
     linhaCorda = this.add.graphics();
     
-    // A garra de volta pro meio certinho, sem relógio em cima dela!
+    // Garra Menor e centralizada perfeitamente
     gancho = this.add.rectangle(512, 100, 25, 20, 0xffffff);
     this.physics.add.existing(gancho);
 
@@ -221,6 +216,7 @@ function spawnarFragmento() {
 function diminuirTempo() {
     if (jogoAcabou || esperandoProximaFase) return; 
     tempoRestante--;
+    
     if (tempoRestante <= 0) {
         jogoAcabou = true;
         textoCentro.setText('TEMPO ESGOTADO!\nGAME OVER.');
@@ -259,26 +255,21 @@ function update() {
         if (estamina > estaminaMaxima) estamina = estaminaMaxima;
     }
 
-    // --- ATUALIZAÇÃO VISUAL DO RELÓGIO (TEMPO E ENERGIA) ---
-    // Gira o ponteiro
+    // --- ATUALIZAÇÃO VISUAL DO RELÓGIO E ENERGIA ---
     ponteiroRelogio.angle = -90 + ((100 - tempoRestante) / 100) * 360;
 
-    // Desenha o arco verde da energia
     graficoEnergia.clear();
     let porcentagemE = estamina / estaminaMaxima;
     
     if (porcentagemE > 0) {
-        // Se a energia abaixar de 20%, o resto da barra verde fica amarelo de aviso
         if (porcentagemE < 0.20) graficoEnergia.lineStyle(12, 0xffff00, 1); 
         else graficoEnergia.lineStyle(12, 0x00ff00, 1); 
 
         graficoEnergia.beginPath();
-        // Desenha começando do topo (-Math.PI / 2) até a quantidade de energia atual
         let anguloFim = (-Math.PI / 2) + (porcentagemE * 2 * Math.PI);
         graficoEnergia.arc(920, 100, 56, -Math.PI / 2, anguloFim, false);
         graficoEnergia.strokePath();
     }
-    // -------------------------------------------------------
 
     if (estadoGancho === 'BALANCANDO') {
         if (apertouBotao) acaoPrincipal.call(this);
@@ -291,8 +282,11 @@ function update() {
             if (anguloGancho <= -75) balancandoParaDireita = true;
         }
         
-        gancho.x = 512 + Math.sin(radianos) * 170; 
-        gancho.y = 50 + Math.cos(radianos) * 100;  
+        // --- A MÁGICA TÁ AQUI: Raio igual para X e Y ---
+        let tamanhoDaCorda = 135; 
+        
+        gancho.x = 512 + Math.sin(radianos) * tamanhoDaCorda; 
+        gancho.y = 50 + Math.cos(radianos) * tamanhoDaCorda;  
         gancho.angle = -anguloGancho; 
     }
     else if (estadoGancho === 'DESCENDO') {
