@@ -1,47 +1,400 @@
-const config = {
-    type: Phaser.AUTO,
-    scale: {
-        mode: Phaser.Scale.FIT,
-        autoCenter: Phaser.Scale.CENTER_BOTH,
-        width: 1024,
-        height: 768
-    },
-    parent: 'game-container', 
-    backgroundColor: '#3e2723', 
-    physics: { default: 'arcade', arcade: { debug: false } },
-    fps: { target: 60, forceSetTimeOut: true },
-    scene: { preload: preload, create: create, update: update }
-};
-
-const game = new Phaser.Game(config);
+// =============================================================================
+//  VARIÁVEIS GLOBAIS
+// =============================================================================
+let volumeGlobal = 1.0;   // controlado pela OptionsScene
 
 let gancho, linhaCorda, grupoObjetos;
 let estadoGancho = 'BALANCANDO', anguloGancho = 0, balancandoParaDireita = true;
 let velocidadeBalanço = 1.0, velocidadeMaxima = 4.0, velocidadeTiroPadrao = 8, objetoPuxado = null;
 
 let moedasColetadas = 0;
-let metaMoedas = 25; 
+let metaMoedas = 25;
 
-let cenarioAtual = 1;      
-let faseNoCenario = 1;     
-let fragmentosAtuais = 0;  
+let cenarioAtual = 1;
+let faseNoCenario = 1;
+let fragmentosAtuais = 0;
 let reliquiasCompletas = 0;
 
-let tempoRestante = 100;    
+let tempoRestante = 100;
 let jogoAcabou = false;
-let esperandoProximaFase = false; 
+let esperandoProximaFase = false;
 let fragmentoRevelado = false;
 
 let estamina = 150;
 let estaminaMaxima = 150;
 
-// --- SUBSTITUÍ O PONTEIRO PELO GRÁFICO DA PIZZA ---
-let graficoDrenagem, graficoTempoPizza, graficoMarcadores;
+let graficoEnergia, graficoDrenagem, graficoTempoPizza, graficoMarcadores;
 let textoHUD, textoCentro, textoEstamina;
 let teclaEspaco;
 
-let posicoesOcupadas = []; 
+let posicoesOcupadas = [];
 
+
+// =============================================================================
+//  CENA DE MENU
+// =============================================================================
+class MenuScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'MenuScene' });
+    }
+
+    create() {
+        const W = 1024, H = 768;
+
+        // Carrega volume salvo
+        let savedVol = localStorage.getItem('museuVolume');
+        volumeGlobal = savedVol !== null ? parseFloat(savedVol) : 1.0;
+
+        // Fundo degradê manual com dois retângulos
+        this.add.rectangle(0, 0, W, H / 2, 0x1a0800).setOrigin(0, 0);
+        this.add.rectangle(0, H / 2, W, H / 2, 0x3e2000).setOrigin(0, 0);
+
+        // Moldura dourada dupla
+        let moldura = this.add.graphics();
+        moldura.lineStyle(3, 0xd4af37, 0.5);
+        moldura.strokeRect(28, 28, W - 56, H - 56);
+        moldura.lineStyle(1, 0xd4af37, 0.2);
+        moldura.strokeRect(38, 38, W - 76, H - 76);
+
+        // Moedas decorativas (fundo animado)
+        this.moedas = [];
+        for (let i = 0; i < 18; i++) {
+            let c = this.add.circle(
+                Phaser.Math.Between(50, W - 50),
+                Phaser.Math.Between(0, H),
+                Phaser.Math.Between(5, 18),
+                Phaser.Math.RND.pick([0xd4af37, 0xffaa00, 0xffffff]),
+                Phaser.Math.FloatBetween(0.05, 0.2)
+            );
+            c.velY = Phaser.Math.FloatBetween(0.3, 1.0);
+            this.moedas.push(c);
+        }
+
+        // Gráfico do pêndulo decorativo
+        this.pendGfx = this.add.graphics();
+        this.pendAngle = 0;
+        this.pendDir = 1;
+
+        // Título
+        this.add.text(W / 2, 125, 'MUSEU DO OURO', {
+            fontFamily: 'Arial',
+            fontSize: '62px',
+            fontStyle: 'bold',
+            color: '#d4af37',
+            stroke: '#5c3a00',
+            strokeThickness: 7
+        }).setOrigin(0.5);
+
+        this.add.text(W / 2, 195, 'Gold Miner — Protótipo', {
+            fontFamily: 'Arial',
+            fontSize: '22px',
+            color: '#bf8b6e'
+        }).setOrigin(0.5);
+
+        // Linha divisória
+        let div = this.add.graphics();
+        div.lineStyle(2, 0xd4af37, 0.4);
+        div.lineBetween(W / 2 - 220, 225, W / 2 + 220, 225);
+
+        // ---------- BOTÕES ----------
+        this._criarBotao(W / 2, 315, 'NOVO JOGO', true, () => {
+            limparSave();
+            cenarioAtual = 1; faseNoCenario = 1;
+            fragmentosAtuais = 0; reliquiasCompletas = 0;
+            jogoAcabou = false; esperandoProximaFase = false;
+            this.scene.start('GameScene');
+        });
+
+        let temSave = localStorage.getItem('museuSave') !== null;
+        this._criarBotao(W / 2, 415, 'CONTINUAR', temSave, temSave ? () => {
+            jogoAcabou = false; esperandoProximaFase = false;
+            this.scene.start('GameScene');
+        } : null);
+
+        this._criarBotao(W / 2, 515, 'OPÇÕES', true, () => {
+            this.scene.start('OptionsScene');
+        });
+
+        // Créditos
+        this.add.text(W / 2, 728, 'Projeto de Extensão — Análise e Desenvolvimento de Sistemas', {
+            fontFamily: 'Arial',
+            fontSize: '15px',
+            color: '#664422'
+        }).setOrigin(0.5);
+
+        if (!temSave) {
+            this.add.text(W / 2, 453, 'Nenhum save encontrado', {
+                fontFamily: 'Arial',
+                fontSize: '13px',
+                color: '#554433'
+            }).setOrigin(0.5);
+        }
+    }
+
+    _criarBotao(x, y, label, ativo, callback) {
+        const LG = 320, AL = 68, R = 12;
+
+        let bg = this.add.graphics();
+        const _desenharBg = (hover) => {
+            bg.clear();
+            if (!ativo) {
+                bg.fillStyle(0x111111, 0.6);
+                bg.fillRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
+                bg.lineStyle(2, 0x3a2a1a, 1);
+                bg.strokeRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
+                return;
+            }
+            if (hover) {
+                bg.fillStyle(0xd4af37, 0.18);
+                bg.fillRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
+                bg.lineStyle(3, 0xd4af37, 1);
+                bg.strokeRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
+            } else {
+                bg.fillStyle(0x000000, 0.55);
+                bg.fillRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
+                bg.lineStyle(2, 0x8b6914, 1);
+                bg.strokeRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
+            }
+        };
+        _desenharBg(false);
+
+        let txt = this.add.text(x, y, label, {
+            fontFamily: 'Arial',
+            fontSize: '30px',
+            fontStyle: 'bold',
+            color: ativo ? '#d4af37' : '#443322'
+        }).setOrigin(0.5);
+
+        if (!callback) return;
+
+        let zona = this.add.zone(x, y, LG, AL).setInteractive({ useHandCursor: true });
+        zona.on('pointerover',  () => { _desenharBg(true);  txt.setScale(1.06); });
+        zona.on('pointerout',   () => { _desenharBg(false); txt.setScale(1.0);  });
+        zona.on('pointerdown',  callback);
+    }
+
+    update() {
+        // Pêndulo decorativo
+        this.pendAngle += 0.7 * this.pendDir;
+        if (this.pendAngle >  50) this.pendDir = -1;
+        if (this.pendAngle < -50) this.pendDir =  1;
+
+        this.pendGfx.clear();
+        this.pendGfx.lineStyle(3, 0xd4af37, 0.4);
+        let rad = Phaser.Math.DegToRad(this.pendAngle);
+        let cx = 512, cy = 48;
+        let px = cx + Math.sin(rad) * 130;
+        let py = cy + Math.cos(rad) * 130;
+        this.pendGfx.lineBetween(cx, cy, px, py);
+        this.pendGfx.fillStyle(0xd4af37, 0.5);
+        this.pendGfx.fillCircle(px, py, 14);
+        this.pendGfx.fillStyle(0x8b6914, 0.6);
+        this.pendGfx.fillCircle(cx, cy, 6);
+
+        // Moedas caindo
+        for (let c of this.moedas) {
+            c.y += c.velY;
+            if (c.y > 800) c.y = -20;
+        }
+    }
+}
+
+
+// =============================================================================
+//  CENA DE OPÇÕES
+// =============================================================================
+class OptionsScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'OptionsScene' });
+    }
+
+    create() {
+        const W = 1024, H = 768;
+        this.arrastando = false;
+
+        // Fundo
+        this.add.rectangle(0, 0, W, H / 2, 0x1a0800).setOrigin(0, 0);
+        this.add.rectangle(0, H / 2, W, H / 2, 0x3e2000).setOrigin(0, 0);
+
+        // Moldura
+        let moldura = this.add.graphics();
+        moldura.lineStyle(3, 0xd4af37, 0.5);
+        moldura.strokeRect(28, 28, W - 56, H - 56);
+
+        // Título
+        this.add.text(W / 2, 120, 'OPÇÕES', {
+            fontFamily: 'Arial',
+            fontSize: '58px',
+            fontStyle: 'bold',
+            color: '#d4af37',
+            stroke: '#5c3a00',
+            strokeThickness: 7
+        }).setOrigin(0.5);
+
+        // Linha divisória
+        let div = this.add.graphics();
+        div.lineStyle(2, 0xd4af37, 0.4);
+        div.lineBetween(W / 2 - 220, 175, W / 2 + 220, 175);
+
+        // -------- VOLUME --------
+        this.add.text(W / 2, 245, 'VOLUME', {
+            fontFamily: 'Arial',
+            fontSize: '28px',
+            fontStyle: 'bold',
+            color: '#bf8b6e'
+        }).setOrigin(0.5);
+
+        // Ícones de volume
+        this.add.text(W / 2 - 240, 330, '🔇', { fontSize: '28px' }).setOrigin(0.5);
+        this.add.text(W / 2 + 240, 330, '🔊', { fontSize: '28px' }).setOrigin(0.5);
+
+        // Trilha do slider
+        const SX = W / 2 - 200;
+        const SY = 330;
+        const SW = 400;
+        this._SX = SX; this._SY = SY; this._SW = SW;
+
+        let trilha = this.add.graphics();
+        trilha.fillStyle(0x2a1800, 1);
+        trilha.fillRoundedRect(SX, SY - 8, SW, 16, 8);
+        trilha.lineStyle(1, 0x7a5c00, 1);
+        trilha.strokeRoundedRect(SX, SY - 8, SW, 16, 8);
+
+        // Porção preenchida (atualizada dinamicamente)
+        this.sliderFill = this.add.graphics();
+
+        // Handle
+        this.handle = this.add.circle(SX + volumeGlobal * SW, SY, 20, 0xd4af37);
+        this.handle.setStrokeStyle(3, 0x5c3a00);
+
+        // Texto da porcentagem
+        this.textoVol = this.add.text(W / 2, 390, `${Math.round(volumeGlobal * 100)}%`, {
+            fontFamily: 'Arial',
+            fontSize: '34px',
+            fontStyle: 'bold',
+            color: '#d4af37'
+        }).setOrigin(0.5);
+
+        this._atualizarSlider();
+
+        // Zona interativa do slider
+        let zonaSlider = this.add.zone(W / 2, SY, SW + 60, 70).setInteractive({ useHandCursor: true });
+        zonaSlider.on('pointerdown', (ptr) => { this.arrastando = true; this._moverSlider(ptr.x); });
+        this.input.on('pointermove', (ptr) => { if (this.arrastando) this._moverSlider(ptr.x); });
+        this.input.on('pointerup',   () => { if (this.arrastando) { this.arrastando = false; localStorage.setItem('museuVolume', volumeGlobal); } });
+
+        // -------- BOTÃO MUDO --------
+        this._muteBg = this.add.graphics();
+        this._muteTxt = this.add.text(W / 2, 480, '🔇  MUDO', {
+            fontFamily: 'Arial',
+            fontSize: '24px',
+            fontStyle: 'bold',
+            color: volumeGlobal === 0 ? '#d4af37' : '#664422'
+        }).setOrigin(0.5);
+
+        this._desenharMute(volumeGlobal === 0);
+
+        let zonaMute = this.add.zone(W / 2, 480, 200, 50).setInteractive({ useHandCursor: true });
+        zonaMute.on('pointerdown', () => {
+            if (volumeGlobal > 0) {
+                this._volAntesMute = volumeGlobal;
+                this._moverSlider(this._SX); // leva pro 0
+            } else {
+                this._moverSlider(this._SX + (this._volAntesMute || 1.0) * this._SW);
+            }
+            localStorage.setItem('museuVolume', volumeGlobal);
+        });
+
+        // -------- BOTÃO VOLTAR --------
+        this._criarBotaoVoltar(W / 2, 620, () => { this.scene.start('MenuScene'); });
+
+        // Dica
+        this.add.text(W / 2, 730, 'O volume será aplicado assim que o jogo iniciar', {
+            fontFamily: 'Arial',
+            fontSize: '14px',
+            color: '#664422'
+        }).setOrigin(0.5);
+    }
+
+    _moverSlider(mouseX) {
+        let novoX = Phaser.Math.Clamp(mouseX, this._SX, this._SX + this._SW);
+        volumeGlobal = (novoX - this._SX) / this._SW;
+        this.handle.x = novoX;
+        this.textoVol.setText(`${Math.round(volumeGlobal * 100)}%`);
+        this._atualizarSlider();
+        this._desenharMute(volumeGlobal === 0);
+        this._muteTxt.setColor(volumeGlobal === 0 ? '#d4af37' : '#664422');
+        this.sound.volume = volumeGlobal;
+    }
+
+    _atualizarSlider() {
+        this.sliderFill.clear();
+        if (volumeGlobal > 0) {
+            this.sliderFill.fillStyle(0xd4af37, 1);
+            this.sliderFill.fillRoundedRect(this._SX, this._SY - 8, volumeGlobal * this._SW, 16, { tl: 8, bl: 8, tr: 0, br: 0 });
+        }
+    }
+
+    _desenharMute(ativo) {
+        this._muteBg.clear();
+        this._muteBg.lineStyle(2, ativo ? 0xd4af37 : 0x443322, 1);
+        this._muteBg.strokeRoundedRect(1024 / 2 - 90, 458, 180, 45, 8);
+    }
+
+    _criarBotaoVoltar(x, y, callback) {
+        const LG = 280, AL = 62, R = 12;
+        let bg = this.add.graphics();
+        const _desenhar = (hover) => {
+            bg.clear();
+            if (hover) {
+                bg.fillStyle(0xd4af37, 0.18);
+                bg.fillRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
+                bg.lineStyle(3, 0xd4af37, 1);
+                bg.strokeRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
+            } else {
+                bg.fillStyle(0x000000, 0.5);
+                bg.fillRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
+                bg.lineStyle(2, 0x8b6914, 1);
+                bg.strokeRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
+            }
+        };
+        _desenhar(false);
+
+        let txt = this.add.text(x, y, '← VOLTAR AO MENU', {
+            fontFamily: 'Arial',
+            fontSize: '24px',
+            fontStyle: 'bold',
+            color: '#d4af37'
+        }).setOrigin(0.5);
+
+        let zona = this.add.zone(x, y, LG, AL).setInteractive({ useHandCursor: true });
+        zona.on('pointerover',  () => { _desenhar(true);  txt.setScale(1.05); });
+        zona.on('pointerout',   () => { _desenhar(false); txt.setScale(1.0);  });
+        zona.on('pointerdown',  callback);
+    }
+}
+
+
+// =============================================================================
+//  CENA DO JOGO  —  delega para as funções originais sem alterar nada
+// =============================================================================
+class GameScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'GameScene' });
+    }
+    preload() { preload.call(this); }
+    create()  { 
+        // Aplica o volume salvo
+        this.sound.volume = volumeGlobal;
+        create.call(this);  
+    }
+    update()  { update.call(this);  }
+}
+
+
+// =============================================================================
+//  FUNÇÕES ORIGINAIS DO JOGO  (INALTERADAS)
+// =============================================================================
 function salvarJogo() {
     let save = { cenario: cenarioAtual, fase: faseNoCenario, fragmentos: fragmentosAtuais, reliquias: reliquiasCompletas };
     localStorage.setItem('museuSave', JSON.stringify(save));
@@ -71,9 +424,9 @@ function create() {
     textoCentro = this.add.text(512, 384, '', { font: '45px Arial', fill: '#00ff00', fontStyle: 'bold', align: 'center' }).setOrigin(0.5);
 
     // --- RELÓGIO PIZZA ---
-    let cx = 920; 
+    let cx = 920;
     let cy = 100;
-    
+
     // Fundo da Energia (Vermelho)
     let fundoEnergia = this.add.graphics();
     fundoEnergia.lineStyle(12, 0xff0000, 1);
@@ -91,15 +444,15 @@ function create() {
     // Marcadores pretos ficam POR CIMA da pizza
     let marcadores = this.add.graphics({x: cx, y: cy});
     marcadores.lineStyle(3, 0x000000, 1);
-    marcadores.lineBetween(0, -40, 0, -50); 
-    marcadores.lineBetween(40, 0, 50, 0);   
-    marcadores.lineBetween(0, 40, 0, 50);   
-    marcadores.lineBetween(-40, 0, -50, 0); 
+    marcadores.lineBetween(0, -40, 0, -50);
+    marcadores.lineBetween(40, 0, 50, 0);
+    marcadores.lineBetween(0, 40, 0, 50);
+    marcadores.lineBetween(-40, 0, -50, 0);
     // -------------------------------------------------------------
 
     grupoObjetos = this.physics.add.group();
     linhaCorda = this.add.graphics();
-    
+
     gancho = this.add.rectangle(512, 100, 25, 20, 0xffffff);
     this.physics.add.existing(gancho);
 
@@ -117,10 +470,10 @@ function atualizarHUD() {
 }
 
 function acharPosicaoValida(raioNovoItem) {
-    let maxTentativas = 100; 
+    let maxTentativas = 100;
     for(let t = 0; t < maxTentativas; t++) {
-        let x = Phaser.Math.Between(50, 974); 
-        let y = Phaser.Math.Between(250, 700); 
+        let x = Phaser.Math.Between(50, 974);
+        let y = Phaser.Math.Between(250, 700);
         let sobreposto = false;
 
         for(let pos of posicoesOcupadas) {
@@ -129,44 +482,44 @@ function acharPosicaoValida(raioNovoItem) {
                 break;
             }
         }
-        
+
         if(!sobreposto) {
             posicoesOcupadas.push({x: x, y: y, raio: raioNovoItem});
             return {x: x, y: y};
         }
     }
-    return {x: Phaser.Math.Between(100, 900), y: Phaser.Math.Between(300, 700)}; 
+    return {x: Phaser.Math.Between(100, 900), y: Phaser.Math.Between(300, 700)};
 }
 
 function montarFase() {
-    grupoObjetos.clear(true, true); 
-    posicoesOcupadas = []; 
+    grupoObjetos.clear(true, true);
+    posicoesOcupadas = [];
     moedasColetadas = 0;
-    
-    tempoRestante = 100; 
-    estamina = 150; 
-    fragmentoRevelado = false; 
+
+    tempoRestante = 100;
+    estamina = 150;
+    fragmentoRevelado = false;
 
     let degrauDificuldade = ((cenarioAtual - 1) * 3) + (faseNoCenario - 1);
-    velocidadeBalanço = 1.0 + (degrauDificuldade * 0.15); 
-    if (velocidadeBalanço > velocidadeMaxima) velocidadeBalanço = velocidadeMaxima; 
+    velocidadeBalanço = 1.0 + (degrauDificuldade * 0.15);
+    if (velocidadeBalanço > velocidadeMaxima) velocidadeBalanço = velocidadeMaxima;
 
-    if (cenarioAtual === 1) this.cameras.main.setBackgroundColor('#3e2723'); 
-    else if (cenarioAtual === 2) this.cameras.main.setBackgroundColor('#1a237e'); 
-    else if (cenarioAtual === 3) this.cameras.main.setBackgroundColor('#b71c1c'); 
-    
+    if (cenarioAtual === 1) this.cameras.main.setBackgroundColor('#3e2723');
+    else if (cenarioAtual === 2) this.cameras.main.setBackgroundColor('#1a237e');
+    else if (cenarioAtual === 3) this.cameras.main.setBackgroundColor('#b71c1c');
+
     atualizarHUD();
-    textoCentro.setText(''); 
+    textoCentro.setText('');
 
     for(let i = 0; i < 18; i++) {
         let chance = Phaser.Math.Between(1, 100);
         let raio, valor, peso, cor;
 
-        if (chance > 85) { 
+        if (chance > 85) {
             raio = 10; valor = 5; peso = 0.5; cor = 0xffffff;
-        } else if (chance > 50) { 
+        } else if (chance > 50) {
             raio = 25; valor = 3; peso = 1.5; cor = 0xd4af37;
-        } else { 
+        } else {
             raio = 15; valor = 1; peso = 1.0; cor = 0xffaa00;
         }
 
@@ -197,32 +550,32 @@ function montarFase() {
 
 function spawnarFragmento() {
     textoCentro.setText('FRAGMENTO REVELADO!\nCapture-o rápido!');
-    textoCentro.setColor('#00ffff'); 
-    
+    textoCentro.setColor('#00ffff');
+
     this.time.delayedCall(2500, () => {
         if (!esperandoProximaFase && !jogoAcabou) textoCentro.setText('');
     });
 
-    let pos = acharPosicaoValida(25); 
+    let pos = acharPosicaoValida(25);
     let fragmentoFisico = this.add.rectangle(pos.x, pos.y, 25, 25, 0x00ffff);
     this.physics.add.existing(fragmentoFisico);
-    
+
     fragmentoFisico.tipo = 'fragmento';
-    fragmentoFisico.peso = 2; 
+    fragmentoFisico.peso = 2;
     fragmentoFisico.valor = 0;
-    
+
     grupoObjetos.add(fragmentoFisico);
 }
 
 function diminuirTempo() {
-    if (jogoAcabou || esperandoProximaFase) return; 
+    if (jogoAcabou || esperandoProximaFase) return;
     tempoRestante--;
-    
+
     if (tempoRestante <= 0) {
         jogoAcabou = true;
         textoCentro.setText('TEMPO ESGOTADO!\nGAME OVER.');
         textoCentro.setColor('#ff0000');
-        limparSave(); 
+        limparSave();
     }
 }
 
@@ -230,14 +583,14 @@ function acaoPrincipal() {
     if (jogoAcabou) return;
     if (esperandoProximaFase) {
         esperandoProximaFase = false;
-        montarFase.call(this); 
+        montarFase.call(this);
     } else if (estadoGancho === 'BALANCANDO') {
         estadoGancho = 'DESCENDO';
     }
 }
 
 function update() {
-    if (jogoAcabou || esperandoProximaFase) return; 
+    if (jogoAcabou || esperandoProximaFase) return;
 
     linhaCorda.clear();
     linhaCorda.lineStyle(3, 0xaaaaaa, 1);
@@ -252,17 +605,17 @@ function update() {
     let taDandoBoost = (estadoGancho === 'SUBINDO' && objetoPuxado && objetoPuxado.tipo === 'pedra_pesada' && segurandoBotao && estamina >= 1.5);
 
     if (!taDandoBoost && estamina < estaminaMaxima) {
-        estamina += 0.15; 
+        estamina += 0.15;
         if (estamina > estaminaMaxima) estamina = estaminaMaxima;
     }
 
     // --- ATUALIZAÇÃO VISUAL: ENERGIA NA BORDA ---
     graficoEnergia.clear();
     let porcentagemE = estamina / estaminaMaxima;
-    
+
     if (porcentagemE > 0) {
-        if (porcentagemE < 0.20) graficoEnergia.lineStyle(12, 0xffff00, 1); 
-        else graficoEnergia.lineStyle(12, 0x00ff00, 1); 
+        if (porcentagemE < 0.20) graficoEnergia.lineStyle(12, 0xffff00, 1);
+        else graficoEnergia.lineStyle(12, 0x00ff00, 1);
 
         graficoEnergia.beginPath();
         let anguloFimE = (-Math.PI / 2) + (porcentagemE * 2 * Math.PI);
@@ -272,19 +625,16 @@ function update() {
 
     // --- ATUALIZAÇÃO VISUAL: PIZZA DO TEMPO ---
     graficoTempoPizza.clear();
-    // Tempo total da fase é 100s. Quanto já perdemos?
     let porcentagemTempoPerdido = (100 - tempoRestante) / 100;
-    
+
     if (porcentagemTempoPerdido > 0) {
-        // Pinta a fatia de preto escuro com uma leve transparência
         graficoTempoPizza.fillStyle(0x111111, 0.85);
         graficoTempoPizza.beginPath();
-        graficoTempoPizza.moveTo(0, 0); // Vai pro centro
-        
-        let anguloInicioPizza = -Math.PI / 2; // Começa 12h
+        graficoTempoPizza.moveTo(0, 0);
+
+        let anguloInicioPizza = -Math.PI / 2;
         let anguloFimPizza = anguloInicioPizza + (porcentagemTempoPerdido * 2 * Math.PI);
-        
-        // Desenha o arco e fecha a "fatia"
+
         graficoTempoPizza.arc(0, 0, 50, anguloInicioPizza, anguloFimPizza, false);
         graficoTempoPizza.closePath();
         graficoTempoPizza.fillPath();
@@ -301,12 +651,12 @@ function update() {
             anguloGancho -= velocidadeBalanço;
             if (anguloGancho <= -75) balancandoParaDireita = true;
         }
-        
-        let tamanhoDaCorda = 135; 
-        
-        gancho.x = 512 + Math.sin(radianos) * tamanhoDaCorda; 
-        gancho.y = 50 + Math.cos(radianos) * tamanhoDaCorda;  
-        gancho.angle = -anguloGancho; 
+
+        let tamanhoDaCorda = 135;
+
+        gancho.x = 512 + Math.sin(radianos) * tamanhoDaCorda;
+        gancho.y = 50  + Math.cos(radianos) * tamanhoDaCorda;
+        gancho.angle = -anguloGancho;
     }
     else if (estadoGancho === 'DESCENDO') {
         gancho.x += Math.sin(radianos) * velocidadeTiroPadrao;
@@ -330,46 +680,46 @@ function update() {
         gancho.x -= Math.sin(radianos) * velocidadeAtual;
         gancho.y -= Math.cos(radianos) * velocidadeAtual;
 
-        if (gancho.y <= 100) { 
-            estadoGancho = 'BALANCANDO'; 
+        if (gancho.y <= 100) {
+            estadoGancho = 'BALANCANDO';
             if (objetoPuxado) {
                 if (objetoPuxado.tipo === 'moeda') {
                     moedasColetadas += objetoPuxado.valor;
-                    
+
                     if (moedasColetadas >= metaMoedas && !fragmentoRevelado) {
                         fragmentoRevelado = true;
                         spawnarFragmento.call(this);
                     }
-                } 
+                }
                 else if (objetoPuxado.tipo === 'fragmento') {
                     fragmentosAtuais++;
-                    faseNoCenario++; 
-                    
+                    faseNoCenario++;
+
                     if (fragmentosAtuais >= 3) {
                         reliquiasCompletas++;
                         cenarioAtual++;
-                        fragmentosAtuais = 0; 
-                        faseNoCenario = 1; 
-                        
+                        fragmentosAtuais = 0;
+                        faseNoCenario = 1;
+
                         if (reliquiasCompletas >= 3) {
                             jogoAcabou = true;
                             textoCentro.setText('PARABÉNS! VOCÊ ZEROU O MUSEU!\n3 Relíquias no Inventário!');
                             textoCentro.setColor('#00ff00');
-                            limparSave(); 
+                            limparSave();
                         } else {
                             textoCentro.setText(`CENÁRIO CONCLUÍDO!\nRelíquia guardada no Inventário.\nClique para iniciar o Cenário ${cenarioAtual}.`);
                             textoCentro.setColor('#00ff00');
-                            esperandoProximaFase = true; 
-                            salvarJogo(); 
+                            esperandoProximaFase = true;
+                            salvarJogo();
                         }
                     } else {
                         textoCentro.setText(`FRAGMENTO CAPTURADO!\nFase ${faseNoCenario} liberada.\nClique para continuar.`);
                         textoCentro.setColor('#00ff00');
-                        esperandoProximaFase = true; 
-                        salvarJogo(); 
+                        esperandoProximaFase = true;
+                        salvarJogo();
                     }
                 }
-                objetoPuxado.destroy(); 
+                objetoPuxado.destroy();
                 objetoPuxado = null;
                 atualizarHUD();
             }
@@ -379,7 +729,29 @@ function update() {
 
 function pegarObjeto(ganchoObjeto, objetoAtingido) {
     if (estadoGancho === 'DESCENDO') {
-        estadoGancho = 'SUBINDO'; 
-        objetoPuxado = objetoAtingido; 
+        estadoGancho = 'SUBINDO';
+        objetoPuxado = objetoAtingido;
     }
 }
+
+
+// =============================================================================
+//  CONFIGURAÇÃO E INICIALIZAÇÃO  (config modificado, game inalterado)
+// =============================================================================
+const config = {
+    type: Phaser.AUTO,
+    scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+        width: 1024,
+        height: 768
+    },
+    parent: 'game-container',
+    backgroundColor: '#1a0800',
+    physics: { default: 'arcade', arcade: { debug: false } },
+    fps: { target: 60, forceSetTimeOut: true },
+    // MenuScene é a primeira — ela inicia o jogo
+    scene: [MenuScene, OptionsScene, GameScene]
+};
+
+const game = new Phaser.Game(config);
