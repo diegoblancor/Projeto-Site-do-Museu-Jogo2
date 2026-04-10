@@ -376,6 +376,169 @@ class OptionsScene extends Phaser.Scene {
 
 
 // =============================================================================
+//  CENA DE PAUSA
+// =============================================================================
+class PauseScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'PauseScene' });
+    }
+
+    init(data) {
+        this.parentScene = data.parentScene || 'GameScene';
+    }
+
+    create() {
+        const W = 1024, H = 768;
+        this.arrastando = false;
+
+        this.add.rectangle(0, 0, W, H, 0x000000, 0.65).setOrigin(0, 0);
+
+        let painel = this.add.graphics();
+        painel.fillStyle(0x120f09, 0.95);
+        painel.fillRoundedRect(162, 128, 700, 512, 18);
+        painel.lineStyle(3, 0xd4af37, 1);
+        painel.strokeRoundedRect(162, 128, 700, 512, 18);
+
+        this.add.text(W / 2, 190, 'PAUSADO', {
+            fontFamily: 'Arial',
+            fontSize: '58px',
+            fontStyle: 'bold',
+            color: '#d4af37',
+            stroke: '#5c3a00',
+            strokeThickness: 6
+        }).setOrigin(0.5);
+
+        this.add.text(W / 2, 250, 'Ajuste o volume antes de retomar o jogo', {
+            fontFamily: 'Arial',
+            fontSize: '22px',
+            color: '#bf8b6e'
+        }).setOrigin(0.5);
+
+        const SX = W / 2 - 200;
+        const SY = 340;
+        const SW = 400;
+        this._SX = SX; this._SY = SY; this._SW = SW;
+
+        let trilha = this.add.graphics();
+        trilha.fillStyle(0x2a1800, 1);
+        trilha.fillRoundedRect(SX, SY - 8, SW, 16, 8);
+        trilha.lineStyle(1, 0x7a5c00, 1);
+        trilha.strokeRoundedRect(SX, SY - 8, SW, 16, 8);
+
+        this.sliderFill = this.add.graphics();
+        this.handle = this.add.circle(SX + volumeGlobal * SW, SY, 20, 0xd4af37);
+        this.handle.setStrokeStyle(3, 0x5c3a00);
+
+        this.textoVol = this.add.text(W / 2, 400, `${Math.round(volumeGlobal * 100)}%`, {
+            fontFamily: 'Arial',
+            fontSize: '34px',
+            fontStyle: 'bold',
+            color: '#d4af37'
+        }).setOrigin(0.5);
+
+        this._atualizarSlider();
+
+        let zonaSlider = this.add.zone(W / 2, SY, SW + 60, 70).setInteractive({ useHandCursor: true });
+        zonaSlider.on('pointerdown', (ptr) => { this.arrastando = true; this._moverSlider(ptr.x); });
+        this.input.on('pointermove', (ptr) => { if (this.arrastando) this._moverSlider(ptr.x); });
+        this.input.on('pointerup',   () => { if (this.arrastando) { this.arrastando = false; localStorage.setItem('museuVolume', volumeGlobal); } });
+
+        this._muteBg = this.add.graphics();
+        this._muteTxt = this.add.text(W / 2, 470, '🔇  MUDO', {
+            fontFamily: 'Arial',
+            fontSize: '24px',
+            fontStyle: 'bold',
+            color: volumeGlobal === 0 ? '#d4af37' : '#664422'
+        }).setOrigin(0.5);
+        this._desenharMute(volumeGlobal === 0);
+
+        let zonaMute = this.add.zone(W / 2, 470, 200, 50).setInteractive({ useHandCursor: true });
+        zonaMute.on('pointerdown', () => {
+            if (volumeGlobal > 0) {
+                this._volAntesMute = volumeGlobal;
+                this._moverSlider(this._SX);
+            } else {
+                this._moverSlider(this._SX + (this._volAntesMute || 1.0) * this._SW);
+            }
+            localStorage.setItem('museuVolume', volumeGlobal);
+        });
+
+        this._criarBotao(W / 2, 540, 'CONTINUAR', true, () => { this._retomarJogo(); });
+        this._criarBotao(W / 2, 620, 'MENU INICIAL', true, () => {
+            this.scene.stop(this.parentScene);
+            this.scene.stop();
+            this.scene.start('MenuScene');
+        });
+
+        this.input.keyboard.on('keydown-ESC', () => { this._retomarJogo(); });
+        this.input.keyboard.on('keydown-SPACE', () => { this._retomarJogo(); });
+    }
+
+    _moverSlider(mouseX) {
+        let novoX = Phaser.Math.Clamp(mouseX, this._SX, this._SX + this._SW);
+        volumeGlobal = (novoX - this._SX) / this._SW;
+        this.handle.x = novoX;
+        this.textoVol.setText(`${Math.round(volumeGlobal * 100)}%`);
+        this._atualizarSlider();
+        this._desenharMute(volumeGlobal === 0);
+        this._muteTxt.setColor(volumeGlobal === 0 ? '#d4af37' : '#664422');
+        this.sound.volume = volumeGlobal;
+        this.scene.get(this.parentScene).sound.volume = volumeGlobal;
+    }
+
+    _atualizarSlider() {
+        this.sliderFill.clear();
+        if (volumeGlobal > 0) {
+            this.sliderFill.fillStyle(0xd4af37, 1);
+            this.sliderFill.fillRoundedRect(this._SX, this._SY - 8, volumeGlobal * this._SW, 16, { tl: 8, bl: 8, tr: 0, br: 0 });
+        }
+    }
+
+    _desenharMute(ativo) {
+        this._muteBg.clear();
+        this._muteBg.lineStyle(2, ativo ? 0xd4af37 : 0x443322, 1);
+        this._muteBg.strokeRoundedRect(1024 / 2 - 90, 448, 180, 45, 8);
+    }
+
+    _criarBotao(x, y, label, ativo, callback) {
+        const LG = 320, AL = 68, R = 12;
+        let bg = this.add.graphics();
+        const _desenharBg = (hover) => {
+            bg.clear();
+            if (hover) {
+                bg.fillStyle(0xd4af37, 0.18);
+                bg.fillRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
+                bg.lineStyle(3, 0xd4af37, 1);
+                bg.strokeRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
+            } else {
+                bg.fillStyle(0x000000, 0.5);
+                bg.fillRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
+                bg.lineStyle(2, 0x8b6914, 1);
+                bg.strokeRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
+            }
+        };
+        _desenharBg(false);
+
+        let txt = this.add.text(x, y, label, {
+            fontFamily: 'Arial',
+            fontSize: '30px',
+            fontStyle: 'bold',
+            color: '#d4af37'
+        }).setOrigin(0.5);
+
+        let zona = this.add.zone(x, y, LG, AL).setInteractive({ useHandCursor: true });
+        zona.on('pointerover',  () => { _desenharBg(true);  txt.setScale(1.06); });
+        zona.on('pointerout',   () => { _desenharBg(false); txt.setScale(1.0);  });
+        zona.on('pointerdown',  callback);
+    }
+
+    _retomarJogo() {
+        this.scene.stop();
+        this.scene.resume(this.parentScene);
+    }
+}
+
+// =============================================================================
 //  CENA DO JOGO  —  delega para as funções originais sem alterar nada
 // =============================================================================
 class GameScene extends Phaser.Scene {
@@ -391,6 +554,24 @@ class GameScene extends Phaser.Scene {
     update()  { update.call(this);  }
 }
 
+GameScene.prototype._criarBotaoPausa = function(x, y) {
+    const size = 62;
+    let bg = this.add.graphics();
+    bg.fillStyle(0x000000, 0.4);
+    bg.fillRoundedRect(x - size / 2, y - size / 2, size, size, 14);
+    bg.lineStyle(2, 0xd4af37, 1);
+    bg.strokeRoundedRect(x - size / 2, y - size / 2, size, size, 14);
+    this.add.text(x, y, '⏸', { fontFamily: 'Arial', fontSize: '30px', color: '#d4af37' }).setOrigin(0.5);
+
+    this.pauseZone = this.add.zone(x, y, size, size).setInteractive({ useHandCursor: true });
+    this.pauseZone.on('pointerdown', () => { this._abrirMenuPausa(); });
+};
+
+GameScene.prototype._abrirMenuPausa = function() {
+    if (this.scene.isPaused()) return;
+    this.scene.launch('PauseScene', { parentScene: this.scene.key });
+    this.scene.pause();
+};
 
 // =============================================================================
 //  FUNÇÕES ORIGINAIS DO JOGO  (INALTERADAS)
@@ -457,8 +638,11 @@ function create() {
     this.physics.add.existing(gancho);
 
     this.physics.add.overlap(gancho, grupoObjetos, pegarObjeto, null, this);
-    this.input.on('pointerdown', acaoPrincipal, this);
+    this.input.on('pointerdown', (pointer) => acaoPrincipal.call(this, pointer), this);
     teclaEspaco = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.teclaEsc = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+
+    this._criarBotaoPausa(994, 26);
 
     this.time.addEvent({ delay: 1000, callback: diminuirTempo, callbackScope: this, loop: true });
 
@@ -579,8 +763,15 @@ function diminuirTempo() {
     }
 }
 
-function acaoPrincipal() {
+function acaoPrincipal(pointer) {
     if (jogoAcabou) return;
+    if (pointer && this.pauseZone) {
+        let bounds = this.pauseZone.getBounds();
+        if (pointer.x >= bounds.x && pointer.x <= bounds.right && pointer.y >= bounds.y && pointer.y <= bounds.bottom) {
+            return;
+        }
+    }
+
     if (esperandoProximaFase) {
         esperandoProximaFase = false;
         montarFase.call(this);
@@ -591,6 +782,11 @@ function acaoPrincipal() {
 
 function update() {
     if (jogoAcabou || esperandoProximaFase) return;
+
+    if (Phaser.Input.Keyboard.JustDown(this.teclaEsc)) {
+        this._abrirMenuPausa();
+        return;
+    }
 
     linhaCorda.clear();
     linhaCorda.lineStyle(3, 0xaaaaaa, 1);
@@ -682,6 +878,10 @@ function update() {
 
         if (gancho.y <= 100) {
             estadoGancho = 'BALANCANDO';
+            anguloGancho = Phaser.Math.Between(-55, 55);
+            velocidadeBalanço = Phaser.Math.Clamp(velocidadeBalanço + Phaser.Math.FloatBetween(-0.6, 0.6), 1.0, velocidadeMaxima);
+            balancandoParaDireita = anguloGancho < 0 ? true : Phaser.Math.Between(0, 1) === 0;
+
             if (objetoPuxado) {
                 if (objetoPuxado.tipo === 'moeda') {
                     moedasColetadas += objetoPuxado.valor;
@@ -751,7 +951,7 @@ const config = {
     physics: { default: 'arcade', arcade: { debug: false } },
     fps: { target: 60, forceSetTimeOut: true },
     // MenuScene é a primeira — ela inicia o jogo
-    scene: [MenuScene, OptionsScene, GameScene]
+    scene: [MenuScene, OptionsScene, GameScene, PauseScene]
 };
 
 const game = new Phaser.Game(config);
