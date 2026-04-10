@@ -641,6 +641,7 @@ function create() {
     this.input.on('pointerdown', (pointer) => acaoPrincipal.call(this, pointer), this);
     teclaEspaco = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.teclaEsc = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+    this.teclaM = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
 
     this._criarBotaoPausa(994, 26);
 
@@ -760,11 +761,37 @@ function diminuirTempo() {
         textoCentro.setText('TEMPO ESGOTADO!\nGAME OVER.');
         textoCentro.setColor('#ff0000');
         limparSave();
+        mostrarControlesGameOver.call(this);
     }
 }
 
+function mostrarControlesGameOver() {
+    if (this.gameOverDrawn) return;
+
+    const W = 1024;
+    this.add.rectangle(W / 2, 530, 680, 90, 0x000000, 0.55).setOrigin(0.5);
+    this.add.text(W / 2, 500, 'Pressione ESPAÇO ou clique para reiniciar. Pressione M para retornar ao menu.', {
+        fontFamily: 'Arial',
+        fontSize: '24px',
+        color: '#ffffff',
+        align: 'center'
+    }).setOrigin(0.5);
+
+    this.gameOverDrawn = true;
+}
+
+function reiniciarFase() {
+    if (!jogoAcabou) return;
+    jogoAcabou = false;
+    esperandoProximaFase = false;
+    montarFase.call(this);
+}
+
 function acaoPrincipal(pointer) {
-    if (jogoAcabou) return;
+    if (jogoAcabou) {
+        reiniciarFase.call(this);
+        return;
+    }
     if (pointer && this.pauseZone) {
         let bounds = this.pauseZone.getBounds();
         if (pointer.x >= bounds.x && pointer.x <= bounds.right && pointer.y >= bounds.y && pointer.y <= bounds.bottom) {
@@ -781,7 +808,18 @@ function acaoPrincipal(pointer) {
 }
 
 function update() {
-    if (jogoAcabou || esperandoProximaFase) return;
+    if (jogoAcabou) {
+        if (Phaser.Input.Keyboard.JustDown(this.teclaEsc) || Phaser.Input.Keyboard.JustDown(this.teclaM)) {
+            this.scene.start('MenuScene');
+            return;
+        }
+        if (Phaser.Input.Keyboard.JustDown(teclaEspaco) || this.input.activePointer.justDown) {
+            reiniciarFase.call(this);
+            return;
+        }
+        return;
+    }
+    if (esperandoProximaFase) return;
 
     if (Phaser.Input.Keyboard.JustDown(this.teclaEsc)) {
         this._abrirMenuPausa();
