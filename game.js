@@ -1,7 +1,7 @@
 // =============================================================================
 //  VARIÁVEIS GLOBAIS
 // =============================================================================
-let volumeGlobal = 1.0;   // controlado pela OptionsScene
+let volumeGlobal = 1.0;   
 
 let gancho, linhaCorda, grupoObjetos;
 let estadoGancho = 'BALANCANDO', anguloGancho = 0, balancandoParaDireita = true;
@@ -23,15 +23,39 @@ let fragmentoRevelado = false;
 let estamina = 150;
 let estaminaMaxima = 150;
 
-let graficoEnergia, graficoDrenagem, graficoTempoPizza, graficoMarcadores;
-let textoHUD, textoCentro, textoEstamina;
+let graficoEnergia, graficoTempoPizza, graficoMarcadores;
+let textoHUD, textoCentro;
 let teclaEspaco;
 
 let posicoesOcupadas = [];
 
 
 // =============================================================================
-//  CENA DE MENU
+//  FUNÇÕES DE SAVE (MEMORY CARD)
+// =============================================================================
+function salvarJogo() {
+    let save = { cenario: cenarioAtual, fase: faseNoCenario, fragmentos: fragmentosAtuais, reliquias: reliquiasCompletas };
+    localStorage.setItem('museuSave', JSON.stringify(save));
+}
+
+function carregarJogo() {
+    let saveText = localStorage.getItem('museuSave');
+    if (saveText) {
+        let data = JSON.parse(saveText);
+        cenarioAtual = data.cenario;
+        faseNoCenario = data.fase;
+        fragmentosAtuais = data.fragmentos;
+        reliquiasCompletas = data.reliquias;
+    }
+}
+
+function limparSave() {
+    localStorage.removeItem('museuSave');
+}
+
+
+// =============================================================================
+//  CENA 1: MENU PRINCIPAL
 // =============================================================================
 class MenuScene extends Phaser.Scene {
     constructor() {
@@ -41,22 +65,18 @@ class MenuScene extends Phaser.Scene {
     create() {
         const W = 1024, H = 768;
 
-        // Carrega volume salvo
         let savedVol = localStorage.getItem('museuVolume');
         volumeGlobal = savedVol !== null ? parseFloat(savedVol) : 1.0;
 
-        // Fundo degradê manual com dois retângulos
         this.add.rectangle(0, 0, W, H / 2, 0x1a0800).setOrigin(0, 0);
         this.add.rectangle(0, H / 2, W, H / 2, 0x3e2000).setOrigin(0, 0);
 
-        // Moldura dourada dupla
         let moldura = this.add.graphics();
         moldura.lineStyle(3, 0xd4af37, 0.5);
         moldura.strokeRect(28, 28, W - 56, H - 56);
         moldura.lineStyle(1, 0xd4af37, 0.2);
         moldura.strokeRect(38, 38, W - 76, H - 76);
 
-        // Moedas decorativas (fundo animado)
         this.moedas = [];
         for (let i = 0; i < 18; i++) {
             let c = this.add.circle(
@@ -70,70 +90,61 @@ class MenuScene extends Phaser.Scene {
             this.moedas.push(c);
         }
 
-        // Gráfico do pêndulo decorativo
         this.pendGfx = this.add.graphics();
         this.pendAngle = 0;
         this.pendDir = 1;
 
-        // Título
-        this.add.text(W / 2, 125, 'MUSEU DO OURO', {
-            fontFamily: 'Arial',
-            fontSize: '62px',
-            fontStyle: 'bold',
-            color: '#d4af37',
-            stroke: '#5c3a00',
-            strokeThickness: 7
+        this.add.text(W / 2, 100, 'MUSEU DO OURO', {
+            fontFamily: 'Arial', fontSize: '62px', fontStyle: 'bold', color: '#d4af37', stroke: '#5c3a00', strokeThickness: 7
         }).setOrigin(0.5);
 
-        this.add.text(W / 2, 195, 'Gold Miner — Protótipo', {
-            fontFamily: 'Arial',
-            fontSize: '22px',
-            color: '#bf8b6e'
+        this.add.text(W / 2, 160, 'Gold Miner — Protótipo', {
+            fontFamily: 'Arial', fontSize: '22px', color: '#bf8b6e'
         }).setOrigin(0.5);
 
-        // Linha divisória
         let div = this.add.graphics();
         div.lineStyle(2, 0xd4af37, 0.4);
-        div.lineBetween(W / 2 - 220, 225, W / 2 + 220, 225);
+        div.lineBetween(W / 2 - 220, 190, W / 2 + 220, 190);
 
-        // ---------- BOTÕES ----------
-        this._criarBotao(W / 2, 315, 'NOVO JOGO', true, () => {
+        // Botoes
+        this._criarBotao(W / 2, 260, 'NOVO JOGO', true, () => {
             limparSave();
-            cenarioAtual = 1; faseNoCenario = 1;
-            fragmentosAtuais = 0; reliquiasCompletas = 0;
+            cenarioAtual = 1; faseNoCenario = 1; fragmentosAtuais = 0; reliquiasCompletas = 0;
             jogoAcabou = false; esperandoProximaFase = false;
             this.scene.start('GameScene');
         });
 
         let temSave = localStorage.getItem('museuSave') !== null;
-        this._criarBotao(W / 2, 415, 'CONTINUAR', temSave, temSave ? () => {
+        this._criarBotao(W / 2, 340, 'CONTINUAR', temSave, temSave ? () => {
             jogoAcabou = false; esperandoProximaFase = false;
             this.scene.start('GameScene');
         } : null);
 
-        this._criarBotao(W / 2, 515, 'OPÇÕES', true, () => {
+        this._criarBotao(W / 2, 420, 'INVENTÁRIO', true, () => {
+            this.scene.start('InventoryScene');
+        });
+
+        this._criarBotao(W / 2, 500, 'TUTORIAL', true, () => {
+            this.scene.start('TutorialScene');
+        });
+
+        this._criarBotao(W / 2, 580, 'OPÇÕES', true, () => {
             this.scene.start('OptionsScene');
         });
 
-        // Créditos
         this.add.text(W / 2, 728, 'Projeto de Extensão — Análise e Desenvolvimento de Sistemas', {
-            fontFamily: 'Arial',
-            fontSize: '15px',
-            color: '#664422'
+            fontFamily: 'Arial', fontSize: '15px', color: '#664422'
         }).setOrigin(0.5);
 
         if (!temSave) {
-            this.add.text(W / 2, 453, 'Nenhum save encontrado', {
-                fontFamily: 'Arial',
-                fontSize: '13px',
-                color: '#554433'
+            this.add.text(W / 2, 380, 'Nenhum save encontrado', {
+                fontFamily: 'Arial', fontSize: '13px', color: '#554433'
             }).setOrigin(0.5);
         }
     }
 
     _criarBotao(x, y, label, ativo, callback) {
-        const LG = 320, AL = 68, R = 12;
-
+        const LG = 320, AL = 60, R = 12;
         let bg = this.add.graphics();
         const _desenharBg = (hover) => {
             bg.clear();
@@ -159,10 +170,7 @@ class MenuScene extends Phaser.Scene {
         _desenharBg(false);
 
         let txt = this.add.text(x, y, label, {
-            fontFamily: 'Arial',
-            fontSize: '30px',
-            fontStyle: 'bold',
-            color: ativo ? '#d4af37' : '#443322'
+            fontFamily: 'Arial', fontSize: '26px', fontStyle: 'bold', color: ativo ? '#d4af37' : '#443322'
         }).setOrigin(0.5);
 
         if (!callback) return;
@@ -174,7 +182,6 @@ class MenuScene extends Phaser.Scene {
     }
 
     update() {
-        // Pêndulo decorativo
         this.pendAngle += 0.7 * this.pendDir;
         if (this.pendAngle >  50) this.pendDir = -1;
         if (this.pendAngle < -50) this.pendDir =  1;
@@ -191,7 +198,6 @@ class MenuScene extends Phaser.Scene {
         this.pendGfx.fillStyle(0x8b6914, 0.6);
         this.pendGfx.fillCircle(cx, cy, 6);
 
-        // Moedas caindo
         for (let c of this.moedas) {
             c.y += c.velY;
             if (c.y > 800) c.y = -20;
@@ -201,7 +207,236 @@ class MenuScene extends Phaser.Scene {
 
 
 // =============================================================================
-//  CENA DE OPÇÕES
+//  CENA 2: INVENTÁRIO 
+// =============================================================================
+// =============================================================================
+//  CENA 2: INVENTÁRIO (SISTEMA DE FRAGMENTAÇÃO)
+// =============================================================================
+class InventoryScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'InventoryScene' });
+    }
+
+    create() {
+        const W = 1024, H = 768;
+
+        // Fundo e moldura
+        this.add.rectangle(0, 0, W, H / 2, 0x1a0800).setOrigin(0, 0);
+        this.add.rectangle(0, H / 2, W, H / 2, 0x3e2000).setOrigin(0, 0);
+
+        let moldura = this.add.graphics();
+        moldura.lineStyle(3, 0xd4af37, 0.5);
+        moldura.strokeRect(28, 28, W - 56, H - 56);
+
+        this.add.text(W / 2, 100, 'SALA DE EXPOSIÇÃO', {
+            fontFamily: 'Arial', fontSize: '50px', fontStyle: 'bold', color: '#d4af37', stroke: '#5c3a00', strokeThickness: 6
+        }).setOrigin(0.5);
+        
+        this.add.text(W / 2, 150, 'Acompanhe a restauração das peças', {
+            fontFamily: 'Arial', fontSize: '22px', color: '#bf8b6e'
+        }).setOrigin(0.5);
+
+        // Puxa relíquias e os FRAGMENTOS pendentes do save
+        let reliquiasSalvas = 0;
+        let fragmentosSalvos = 0;
+        let saveText = localStorage.getItem('museuSave');
+        if (saveText) {
+            let data = JSON.parse(saveText);
+            reliquiasSalvas = data.reliquias || 0;
+            fragmentosSalvos = data.fragmentos || 0;
+        }
+
+        const coresReliquias = [0x8b4513, 0x1e90ff, 0x800080];
+        const nomesReliquias = ["Artefato da Terra", "Cálice das Águas", "Coroa das Ruínas"];
+        const espacamento = 250;
+        const startX = W / 2 - espacamento;
+
+        for (let i = 0; i < 3; i++) {
+            let px = startX + (i * espacamento);
+            let py = 350;
+
+            // Fundo do vidro do pedestal
+            let bgSlot = this.add.graphics();
+            bgSlot.fillStyle(0x000000, 0.6);
+            bgSlot.fillRoundedRect(px - 100, py - 120, 200, 240, 16);
+            bgSlot.lineStyle(2, 0xd4af37, 0.8);
+            bgSlot.strokeRoundedRect(px - 100, py - 120, 200, 240, 16);
+
+            // Lógica braba: descobre quantos pedaços desenhar NESSE pedestal
+            let fragsDestaReliquia = 0;
+            if (reliquiasSalvas > i) {
+                fragsDestaReliquia = 3; // Já completou essa
+            } else if (reliquiasSalvas === i) {
+                fragsDestaReliquia = fragmentosSalvos; // Tá montando essa
+            } else {
+                fragsDestaReliquia = 0; // Nem chegou nessa ainda
+            }
+
+            // Desenha os 3 pedaços (de baixo para cima)
+            // Pedaço 1: Base (Larga e achatada)
+            this._desenharFragmento(px, py + 30, 80, 30, coresReliquias[i], fragsDestaReliquia >= 1);
+            // Pedaço 2: Corpo (Médio)
+            this._desenharFragmento(px, py - 5, 60, 40, coresReliquias[i], fragsDestaReliquia >= 2);
+            // Pedaço 3: Topo (Menor)
+            this._desenharFragmento(px, py - 45, 50, 40, coresReliquias[i], fragsDestaReliquia >= 3);
+
+            // Textos de Status
+            if (fragsDestaReliquia === 3) {
+                this.add.text(px, py + 85, nomesReliquias[i], {
+                    fontFamily: 'Arial', fontSize: '18px', fontStyle: 'bold', color: '#00ff00', align: 'center'
+                }).setOrigin(0.5);
+            } else if (fragsDestaReliquia > 0) {
+                this.add.text(px, py + 85, `Restaurando...\n(${fragsDestaReliquia}/3)`, {
+                    fontFamily: 'Arial', fontSize: '16px', fontStyle: 'bold', color: '#ffd700', align: 'center'
+                }).setOrigin(0.5);
+            } else {
+                // Se tá zerado, mostra o Ponto de Interrogação grandão por cima do "fantasma" da relíquia
+                this.add.text(px, py - 10, '?', {
+                    fontFamily: 'Arial', fontSize: '60px', fontStyle: 'bold', color: '#443322'
+                }).setOrigin(0.5);
+                this.add.text(px, py + 85, 'Bloqueado', {
+                    fontFamily: 'Arial', fontSize: '18px', fontStyle: 'bold', color: '#443322', align: 'center'
+                }).setOrigin(0.5);
+            }
+        }
+
+        this._criarBotaoVoltar(W / 2, 650, () => { this.scene.start('MenuScene'); });
+    }
+
+    // Função marota pra desenhar a peça acesa (se pegou) ou apagada (fantasma)
+    _desenharFragmento(x, y, w, h, cor, temPeca) {
+        let gfx = this.add.graphics();
+        if (temPeca) {
+            gfx.fillStyle(cor, 1);
+            gfx.fillRoundedRect(x - w/2, y - h/2, w, h, 4);
+            gfx.lineStyle(2, 0xffffff, 0.6);
+            gfx.strokeRoundedRect(x - w/2, y - h/2, w, h, 4);
+        } else {
+            // Desenha a silhueta pra dar o "gostinho" do encaixe pro jogador
+            gfx.fillStyle(0x222222, 0.5);
+            gfx.fillRoundedRect(x - w/2, y - h/2, w, h, 4);
+            gfx.lineStyle(2, 0x444444, 0.5);
+            gfx.strokeRoundedRect(x - w/2, y - h/2, w, h, 4);
+        }
+    }
+
+    _criarBotaoVoltar(x, y, callback) {
+        const LG = 280, AL = 62, R = 12;
+        let bg = this.add.graphics();
+        const _desenhar = (hover) => {
+            bg.clear();
+            if (hover) {
+                bg.fillStyle(0xd4af37, 0.18);
+                bg.fillRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
+                bg.lineStyle(3, 0xd4af37, 1);
+                bg.strokeRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
+            } else {
+                bg.fillStyle(0x000000, 0.5);
+                bg.fillRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
+                bg.lineStyle(2, 0x8b6914, 1);
+                bg.strokeRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
+            }
+        };
+        _desenhar(false);
+
+        let txt = this.add.text(x, y, '← VOLTAR AO MENU', {
+            fontFamily: 'Arial', fontSize: '24px', fontStyle: 'bold', color: '#d4af37'
+        }).setOrigin(0.5);
+
+        let zona = this.add.zone(x, y, LG, AL).setInteractive({ useHandCursor: true });
+        zona.on('pointerover',  () => { _desenhar(true);  txt.setScale(1.05); });
+        zona.on('pointerout',   () => { _desenhar(false); txt.setScale(1.0);  });
+        zona.on('pointerdown',  callback);
+    }
+}
+
+
+// =============================================================================
+//  CENA 3: TUTORIAL
+// =============================================================================
+class TutorialScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'TutorialScene' });
+    }
+
+    create() {
+        const W = 1024, H = 768;
+
+        this.add.rectangle(0, 0, W, H / 2, 0x1a0800).setOrigin(0, 0);
+        this.add.rectangle(0, H / 2, W, H / 2, 0x3e2000).setOrigin(0, 0);
+
+        let moldura = this.add.graphics();
+        moldura.lineStyle(3, 0xd4af37, 0.5);
+        moldura.strokeRect(28, 28, W - 56, H - 56);
+
+        this.add.text(W / 2, 100, 'COMO JOGAR', {
+            fontFamily: 'Arial', fontSize: '50px', fontStyle: 'bold', color: '#d4af37', stroke: '#5c3a00', strokeThickness: 6
+        }).setOrigin(0.5);
+
+        let div = this.add.graphics();
+        div.lineStyle(2, 0xd4af37, 0.4);
+        div.lineBetween(W / 2 - 200, 150, W / 2 + 200, 150);
+
+        let painel = this.add.graphics();
+        painel.fillStyle(0x000000, 0.5);
+        painel.fillRoundedRect(W / 2 - 350, 180, 700, 380, 16);
+        painel.lineStyle(2, 0xd4af37, 0.8);
+        painel.strokeRoundedRect(W / 2 - 350, 180, 700, 380, 16);
+
+        let instrucoes = [
+            "🎣 O gancho balança automaticamente de um lado para o outro.",
+            "",
+            "🖱️ Clique com o MOUSE ou aperte ESPAÇO para lançar a corda.",
+            "",
+            "⚙️ Pegou uma pedra muito pesada? SEGURE o clique/ESPAÇO",
+            "para usar o BOOST de força. Mas cuidado: isso gasta Energia!",
+            "",
+            "💎 Junte moedas e diamantes para somar 25 Pontos e revelar",
+            "o Fragmento de Relíquia perdido no cenário.",
+            "",
+            "⏳ Fique de olho no Relógio! Se o tempo acabar, é Game Over."
+        ];
+
+        this.add.text(W / 2, 370, instrucoes.join('\n'), {
+            fontFamily: 'Arial', fontSize: '22px', color: '#ffffff', align: 'center', lineSpacing: 5
+        }).setOrigin(0.5);
+
+        this._criarBotaoVoltar(W / 2, 650, () => { this.scene.start('MenuScene'); });
+    }
+
+    _criarBotaoVoltar(x, y, callback) {
+        const LG = 280, AL = 62, R = 12;
+        let bg = this.add.graphics();
+        const _desenhar = (hover) => {
+            bg.clear();
+            if (hover) {
+                bg.fillStyle(0xd4af37, 0.18);
+                bg.fillRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
+                bg.lineStyle(3, 0xd4af37, 1);
+                bg.strokeRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
+            } else {
+                bg.fillStyle(0x000000, 0.5);
+                bg.fillRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
+                bg.lineStyle(2, 0x8b6914, 1);
+                bg.strokeRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
+            }
+        };
+        _desenhar(false);
+
+        let txt = this.add.text(x, y, '← ENTENDIDO!', {
+            fontFamily: 'Arial', fontSize: '24px', fontStyle: 'bold', color: '#d4af37'
+        }).setOrigin(0.5);
+
+        let zona = this.add.zone(x, y, LG, AL).setInteractive({ useHandCursor: true });
+        zona.on('pointerover',  () => { _desenhar(true);  txt.setScale(1.05); });
+        zona.on('pointerout',   () => { _desenhar(false); txt.setScale(1.0);  });
+        zona.on('pointerdown',  callback);
+    }
+}
+
+
+// =============================================================================
+//  CENA 4: OPÇÕES
 // =============================================================================
 class OptionsScene extends Phaser.Scene {
     constructor() {
@@ -212,43 +447,28 @@ class OptionsScene extends Phaser.Scene {
         const W = 1024, H = 768;
         this.arrastando = false;
 
-        // Fundo
         this.add.rectangle(0, 0, W, H / 2, 0x1a0800).setOrigin(0, 0);
         this.add.rectangle(0, H / 2, W, H / 2, 0x3e2000).setOrigin(0, 0);
 
-        // Moldura
         let moldura = this.add.graphics();
         moldura.lineStyle(3, 0xd4af37, 0.5);
         moldura.strokeRect(28, 28, W - 56, H - 56);
 
-        // Título
         this.add.text(W / 2, 120, 'OPÇÕES', {
-            fontFamily: 'Arial',
-            fontSize: '58px',
-            fontStyle: 'bold',
-            color: '#d4af37',
-            stroke: '#5c3a00',
-            strokeThickness: 7
+            fontFamily: 'Arial', fontSize: '58px', fontStyle: 'bold', color: '#d4af37', stroke: '#5c3a00', strokeThickness: 7
         }).setOrigin(0.5);
 
-        // Linha divisória
         let div = this.add.graphics();
         div.lineStyle(2, 0xd4af37, 0.4);
         div.lineBetween(W / 2 - 220, 175, W / 2 + 220, 175);
 
-        // -------- VOLUME --------
         this.add.text(W / 2, 245, 'VOLUME', {
-            fontFamily: 'Arial',
-            fontSize: '28px',
-            fontStyle: 'bold',
-            color: '#bf8b6e'
+            fontFamily: 'Arial', fontSize: '28px', fontStyle: 'bold', color: '#bf8b6e'
         }).setOrigin(0.5);
 
-        // Ícones de volume
         this.add.text(W / 2 - 240, 330, '🔇', { fontSize: '28px' }).setOrigin(0.5);
         this.add.text(W / 2 + 240, 330, '🔊', { fontSize: '28px' }).setOrigin(0.5);
 
-        // Trilha do slider
         const SX = W / 2 - 200;
         const SY = 330;
         const SW = 400;
@@ -260,36 +480,24 @@ class OptionsScene extends Phaser.Scene {
         trilha.lineStyle(1, 0x7a5c00, 1);
         trilha.strokeRoundedRect(SX, SY - 8, SW, 16, 8);
 
-        // Porção preenchida (atualizada dinamicamente)
         this.sliderFill = this.add.graphics();
-
-        // Handle
         this.handle = this.add.circle(SX + volumeGlobal * SW, SY, 20, 0xd4af37);
         this.handle.setStrokeStyle(3, 0x5c3a00);
 
-        // Texto da porcentagem
         this.textoVol = this.add.text(W / 2, 390, `${Math.round(volumeGlobal * 100)}%`, {
-            fontFamily: 'Arial',
-            fontSize: '34px',
-            fontStyle: 'bold',
-            color: '#d4af37'
+            fontFamily: 'Arial', fontSize: '34px', fontStyle: 'bold', color: '#d4af37'
         }).setOrigin(0.5);
 
         this._atualizarSlider();
 
-        // Zona interativa do slider
         let zonaSlider = this.add.zone(W / 2, SY, SW + 60, 70).setInteractive({ useHandCursor: true });
         zonaSlider.on('pointerdown', (ptr) => { this.arrastando = true; this._moverSlider(ptr.x); });
         this.input.on('pointermove', (ptr) => { if (this.arrastando) this._moverSlider(ptr.x); });
         this.input.on('pointerup',   () => { if (this.arrastando) { this.arrastando = false; localStorage.setItem('museuVolume', volumeGlobal); } });
 
-        // -------- BOTÃO MUDO --------
         this._muteBg = this.add.graphics();
         this._muteTxt = this.add.text(W / 2, 480, '🔇  MUDO', {
-            fontFamily: 'Arial',
-            fontSize: '24px',
-            fontStyle: 'bold',
-            color: volumeGlobal === 0 ? '#d4af37' : '#664422'
+            fontFamily: 'Arial', fontSize: '24px', fontStyle: 'bold', color: volumeGlobal === 0 ? '#d4af37' : '#664422'
         }).setOrigin(0.5);
 
         this._desenharMute(volumeGlobal === 0);
@@ -298,21 +506,17 @@ class OptionsScene extends Phaser.Scene {
         zonaMute.on('pointerdown', () => {
             if (volumeGlobal > 0) {
                 this._volAntesMute = volumeGlobal;
-                this._moverSlider(this._SX); // leva pro 0
+                this._moverSlider(this._SX);
             } else {
                 this._moverSlider(this._SX + (this._volAntesMute || 1.0) * this._SW);
             }
             localStorage.setItem('museuVolume', volumeGlobal);
         });
 
-        // -------- BOTÃO VOLTAR --------
         this._criarBotaoVoltar(W / 2, 620, () => { this.scene.start('MenuScene'); });
 
-        // Dica
         this.add.text(W / 2, 730, 'O volume será aplicado assim que o jogo iniciar', {
-            fontFamily: 'Arial',
-            fontSize: '14px',
-            color: '#664422'
+            fontFamily: 'Arial', fontSize: '14px', color: '#664422'
         }).setOrigin(0.5);
     }
 
@@ -361,10 +565,7 @@ class OptionsScene extends Phaser.Scene {
         _desenhar(false);
 
         let txt = this.add.text(x, y, '← VOLTAR AO MENU', {
-            fontFamily: 'Arial',
-            fontSize: '24px',
-            fontStyle: 'bold',
-            color: '#d4af37'
+            fontFamily: 'Arial', fontSize: '24px', fontStyle: 'bold', color: '#d4af37'
         }).setOrigin(0.5);
 
         let zona = this.add.zone(x, y, LG, AL).setInteractive({ useHandCursor: true });
@@ -376,7 +577,7 @@ class OptionsScene extends Phaser.Scene {
 
 
 // =============================================================================
-//  CENA DE PAUSA
+//  CENA 5: PAUSA
 // =============================================================================
 class PauseScene extends Phaser.Scene {
     constructor() {
@@ -400,18 +601,11 @@ class PauseScene extends Phaser.Scene {
         painel.strokeRoundedRect(162, 128, 700, 512, 18);
 
         this.add.text(W / 2, 190, 'PAUSADO', {
-            fontFamily: 'Arial',
-            fontSize: '58px',
-            fontStyle: 'bold',
-            color: '#d4af37',
-            stroke: '#5c3a00',
-            strokeThickness: 6
+            fontFamily: 'Arial', fontSize: '58px', fontStyle: 'bold', color: '#d4af37', stroke: '#5c3a00', strokeThickness: 6
         }).setOrigin(0.5);
 
         this.add.text(W / 2, 250, 'Ajuste o volume antes de retomar o jogo', {
-            fontFamily: 'Arial',
-            fontSize: '22px',
-            color: '#bf8b6e'
+            fontFamily: 'Arial', fontSize: '22px', color: '#bf8b6e'
         }).setOrigin(0.5);
 
         const SX = W / 2 - 200;
@@ -430,10 +624,7 @@ class PauseScene extends Phaser.Scene {
         this.handle.setStrokeStyle(3, 0x5c3a00);
 
         this.textoVol = this.add.text(W / 2, 400, `${Math.round(volumeGlobal * 100)}%`, {
-            fontFamily: 'Arial',
-            fontSize: '34px',
-            fontStyle: 'bold',
-            color: '#d4af37'
+            fontFamily: 'Arial', fontSize: '34px', fontStyle: 'bold', color: '#d4af37'
         }).setOrigin(0.5);
 
         this._atualizarSlider();
@@ -445,10 +636,7 @@ class PauseScene extends Phaser.Scene {
 
         this._muteBg = this.add.graphics();
         this._muteTxt = this.add.text(W / 2, 470, '🔇  MUDO', {
-            fontFamily: 'Arial',
-            fontSize: '24px',
-            fontStyle: 'bold',
-            color: volumeGlobal === 0 ? '#d4af37' : '#664422'
+            fontFamily: 'Arial', fontSize: '24px', fontStyle: 'bold', color: volumeGlobal === 0 ? '#d4af37' : '#664422'
         }).setOrigin(0.5);
         this._desenharMute(volumeGlobal === 0);
 
@@ -520,10 +708,7 @@ class PauseScene extends Phaser.Scene {
         _desenharBg(false);
 
         let txt = this.add.text(x, y, label, {
-            fontFamily: 'Arial',
-            fontSize: '30px',
-            fontStyle: 'bold',
-            color: '#d4af37'
+            fontFamily: 'Arial', fontSize: '30px', fontStyle: 'bold', color: '#d4af37'
         }).setOrigin(0.5);
 
         let zona = this.add.zone(x, y, LG, AL).setInteractive({ useHandCursor: true });
@@ -538,8 +723,9 @@ class PauseScene extends Phaser.Scene {
     }
 }
 
+
 // =============================================================================
-//  CENA DO JOGO  —  delega para as funções originais sem alterar nada
+//  CENA 6: JOGO PRINCIPAL
 // =============================================================================
 class GameScene extends Phaser.Scene {
     constructor() {
@@ -547,7 +733,6 @@ class GameScene extends Phaser.Scene {
     }
     preload() { preload.call(this); }
     create()  { 
-        // Aplica o volume salvo
         this.sound.volume = volumeGlobal;
         create.call(this);  
     }
@@ -574,28 +759,8 @@ GameScene.prototype._abrirMenuPausa = function() {
 };
 
 // =============================================================================
-//  FUNÇÕES ORIGINAIS DO JOGO  (INALTERADAS)
+//  LÓGICA CORE DO JOGO (SISTEMA MARRETA)
 // =============================================================================
-function salvarJogo() {
-    let save = { cenario: cenarioAtual, fase: faseNoCenario, fragmentos: fragmentosAtuais, reliquias: reliquiasCompletas };
-    localStorage.setItem('museuSave', JSON.stringify(save));
-}
-
-function carregarJogo() {
-    let saveText = localStorage.getItem('museuSave');
-    if (saveText) {
-        let data = JSON.parse(saveText);
-        cenarioAtual = data.cenario;
-        faseNoCenario = data.fase;
-        fragmentosAtuais = data.fragmentos;
-        reliquiasCompletas = data.reliquias;
-    }
-}
-
-function limparSave() {
-    localStorage.removeItem('museuSave');
-}
-
 function preload() {}
 
 function create() {
@@ -604,32 +769,23 @@ function create() {
     textoHUD = this.add.text(10, 10, '', { font: '22px Arial', fill: '#fff', fontStyle: 'bold' });
     textoCentro = this.add.text(512, 384, '', { font: '45px Arial', fill: '#00ff00', fontStyle: 'bold', align: 'center' }).setOrigin(0.5);
 
-    // --- RELÓGIO PIZZA ---
     let cx = 920;
     let cy = 100;
 
-    // Fundo da Energia (Vermelho)
     let fundoEnergia = this.add.graphics();
     fundoEnergia.lineStyle(12, 0xff0000, 1);
     fundoEnergia.strokeCircle(cx, cy, 56);
 
-    // Gráfico da Energia Atual (Verde)
     graficoEnergia = this.add.graphics();
-
-    // Face do Relógio (Marrom escuro)
     this.add.circle(cx, cy, 50, 0xbf8b6e);
-
-    // --- NOVO: A FATIA DE PIZZA DO TEMPO (Nasce invisível e cresce) ---
     graficoTempoPizza = this.add.graphics({x: cx, y: cy});
 
-    // Marcadores pretos ficam POR CIMA da pizza
     let marcadores = this.add.graphics({x: cx, y: cy});
     marcadores.lineStyle(3, 0x000000, 1);
     marcadores.lineBetween(0, -40, 0, -50);
     marcadores.lineBetween(40, 0, 50, 0);
     marcadores.lineBetween(0, 40, 0, 50);
     marcadores.lineBetween(-40, 0, -50, 0);
-    // -------------------------------------------------------------
 
     grupoObjetos = this.physics.add.group();
     linhaCorda = this.add.graphics();
@@ -696,6 +852,7 @@ function montarFase() {
     atualizarHUD();
     textoCentro.setText('');
 
+    // Gerador blindado: Diamante tá levinho (0.5)!
     for(let i = 0; i < 18; i++) {
         let chance = Phaser.Math.Between(1, 100);
         let raio, valor, peso, cor;
@@ -771,10 +928,7 @@ function mostrarControlesGameOver() {
     const W = 1024;
     this.add.rectangle(W / 2, 530, 680, 90, 0x000000, 0.55).setOrigin(0.5);
     this.add.text(W / 2, 500, 'Pressione ESPAÇO ou clique para reiniciar. Pressione M para retornar ao menu.', {
-        fontFamily: 'Arial',
-        fontSize: '24px',
-        color: '#ffffff',
-        align: 'center'
+        fontFamily: 'Arial', fontSize: '24px', color: '#ffffff', align: 'center'
     }).setOrigin(0.5);
 
     this.gameOverDrawn = true;
@@ -784,6 +938,7 @@ function reiniciarFase() {
     if (!jogoAcabou) return;
     jogoAcabou = false;
     esperandoProximaFase = false;
+    this.gameOverDrawn = false;
     montarFase.call(this);
 }
 
@@ -843,7 +998,6 @@ function update() {
         if (estamina > estaminaMaxima) estamina = estaminaMaxima;
     }
 
-    // --- ATUALIZAÇÃO VISUAL: ENERGIA NA BORDA ---
     graficoEnergia.clear();
     let porcentagemE = estamina / estaminaMaxima;
 
@@ -857,7 +1011,6 @@ function update() {
         graficoEnergia.strokePath();
     }
 
-    // --- ATUALIZAÇÃO VISUAL: PIZZA DO TEMPO ---
     graficoTempoPizza.clear();
     let porcentagemTempoPerdido = (100 - tempoRestante) / 100;
 
@@ -873,7 +1026,6 @@ function update() {
         graficoTempoPizza.closePath();
         graficoTempoPizza.fillPath();
     }
-    // -------------------------------------------------------
 
     if (estadoGancho === 'BALANCANDO') {
         if (apertouBotao) acaoPrincipal.call(this);
@@ -914,10 +1066,11 @@ function update() {
         gancho.x -= Math.sin(radianos) * velocidadeAtual;
         gancho.y -= Math.cos(radianos) * velocidadeAtual;
 
+        // O SEGREDO TÁ AQUI EMBAIXO: Tirei aquela maracutaia de velocidade aleatória que quebrou seu jogo. 
         if (gancho.y <= 100) {
             estadoGancho = 'BALANCANDO';
-            anguloGancho = Phaser.Math.Between(-55, 55);
-            velocidadeBalanço = Phaser.Math.Clamp(velocidadeBalanço + Phaser.Math.FloatBetween(-0.6, 0.6), 1.0, velocidadeMaxima);
+            // Deixei só o angulo mudando pra garra não cair sempre reta
+            anguloGancho = Phaser.Math.Between(-55, 55); 
             balancandoParaDireita = anguloGancho < 0 ? true : Phaser.Math.Between(0, 1) === 0;
 
             if (objetoPuxado) {
@@ -974,7 +1127,7 @@ function pegarObjeto(ganchoObjeto, objetoAtingido) {
 
 
 // =============================================================================
-//  CONFIGURAÇÃO E INICIALIZAÇÃO  (config modificado, game inalterado)
+//  CONFIGURAÇÃO E INICIALIZAÇÃO DO PHASER
 // =============================================================================
 const config = {
     type: Phaser.AUTO,
@@ -988,8 +1141,8 @@ const config = {
     backgroundColor: '#1a0800',
     physics: { default: 'arcade', arcade: { debug: false } },
     fps: { target: 60, forceSetTimeOut: true },
-    // MenuScene é a primeira — ela inicia o jogo
-    scene: [MenuScene, OptionsScene, GameScene, PauseScene]
+    // AQUI ESTÃO TODAS AS SUAS CENAS BLINDADAS:
+    scene: [MenuScene, InventoryScene, TutorialScene, OptionsScene, GameScene, PauseScene]
 };
 
 const game = new Phaser.Game(config);
