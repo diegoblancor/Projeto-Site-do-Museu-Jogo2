@@ -1181,6 +1181,9 @@ function update() {
             if (objetoPuxado) {
                 if (objetoPuxado.tipo === 'moeda') {
                     moedasColetadas += objetoPuxado.valor;
+                    let corTexto = objetoPuxado.valor === 5 ? '#ffffff' : objetoPuxado.valor === 3 ? '#d4af37' : '#ffaa00';
+                    mostrarTextoFlutuante(this, gancho.x, gancho.y, `+$${objetoPuxado.valor}`, corTexto);
+                    this.cameras.main.flash(160, 255, 215, 0);
 
                     if (moedasColetadas >= metaMoedas && !fragmentoRevelado) {
                         fragmentoRevelado = true;
@@ -1188,6 +1191,9 @@ function update() {
                     }
                 }
                 else if (objetoPuxado.tipo === 'fragmento') {
+                    mostrarTextoFlutuante(this, gancho.x, gancho.y, 'FRAGMENTO!', '#00ffff');
+                    this.cameras.main.flash(300, 0, 200, 220);
+                    pulsarIrradiante(this, gancho.x, gancho.y);
                     fragmentosAtuais++;
                     faseNoCenario++;
 
@@ -1223,10 +1229,50 @@ function update() {
     }
 }
 
+function mostrarTextoFlutuante(scene, x, y, texto, cor) {
+    let t = scene.add.text(x, y, texto, {
+        fontFamily: 'Arial', fontSize: '26px', fontStyle: 'bold',
+        color: cor, stroke: '#000000', strokeThickness: 3
+    }).setOrigin(0.5).setDepth(10);
+    scene.tweens.add({
+        targets: t,
+        y: y - 80,
+        alpha: 0,
+        duration: 900,
+        ease: 'Power2',
+        onComplete: () => t.destroy()
+    });
+}
+
+function pulsarIrradiante(scene, x, y) {
+    for (let i = 0; i < 3; i++) {
+        scene.time.delayedCall(i * 110, () => {
+            let ring = scene.add.graphics().setDepth(9);
+            ring.lineStyle(3, 0x00ffff, 1);
+            ring.strokeCircle(x, y, 10);
+            scene.tweens.add({
+                targets: ring,
+                scaleX: 5,
+                scaleY: 5,
+                alpha: 0,
+                duration: 650,
+                ease: 'Power2',
+                onComplete: () => ring.destroy()
+            });
+        });
+    }
+}
+
 function pegarObjeto(ganchoObjeto, objetoAtingido) {
     if (estadoGancho === 'DESCENDO') {
         estadoGancho = 'SUBINDO';
         objetoPuxado = objetoAtingido;
+        if (objetoAtingido.tipo === 'pedra_pesada') {
+            let scene = ganchoObjeto.scene;
+            mostrarTextoFlutuante(scene, ganchoObjeto.x, ganchoObjeto.y, 'PESADA...', '#ff4444');
+            scene.cameras.main.flash(200, 255, 30, 0);
+            scene.cameras.main.shake(220, 0.005);
+        }
     }
 }
 
