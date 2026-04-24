@@ -698,38 +698,117 @@ function montarFase() {
 
     for(let i = 0; i < 18; i++) {
         let chance = Phaser.Math.Between(1, 100);
-        let raio, valor, peso, cor;
+        let item;
 
         if (chance > 85) {
-            raio = 10; valor = 5; peso = 0.5; cor = 0xffffff;
+            // Moeda $5: losango branco com borda dourada
+            let r = 10;
+            let pos = acharPosicaoValida(r);
+            let gfx = this.add.graphics({ x: pos.x, y: pos.y });
+            gfx.fillStyle(0xffffff, 1);
+            gfx.fillPoints([{x:0,y:-r},{x:r,y:0},{x:0,y:r},{x:-r,y:0}], true);
+            gfx.lineStyle(2, 0xd4af37, 1);
+            gfx.strokePoints([{x:0,y:-r},{x:r,y:0},{x:0,y:r},{x:-r,y:0}], true);
+            this.physics.add.existing(gfx);
+            gfx.body.setCircle(r, -r, -r);
+            gfx.tipo = 'moeda'; gfx.peso = 0.5; gfx.valor = 5;
+            item = gfx;
+
         } else if (chance > 50) {
-            raio = 25; valor = 3; peso = 1.5; cor = 0xd4af37;
+            // Moeda $3: hexágono dourado com detalhe interno
+            let r = 25;
+            let pos = acharPosicaoValida(r);
+            let gfx = this.add.graphics({ x: pos.x, y: pos.y });
+            let pts = [];
+            for (let k = 0; k < 6; k++) {
+                let a = (Math.PI / 3) * k - Math.PI / 2;
+                pts.push({ x: Math.cos(a) * r, y: Math.sin(a) * r });
+            }
+            gfx.fillStyle(0xd4af37, 1);
+            gfx.fillPoints(pts, true);
+            gfx.lineStyle(2, 0xffd700, 1);
+            gfx.strokePoints(pts, true);
+            let ri = Math.round(r * 0.5);
+            let ptsI = [];
+            for (let k = 0; k < 6; k++) {
+                let a = (Math.PI / 3) * k - Math.PI / 2;
+                ptsI.push({ x: Math.cos(a) * ri, y: Math.sin(a) * ri });
+            }
+            gfx.lineStyle(1.5, 0xffffff, 0.4);
+            gfx.strokePoints(ptsI, true);
+            this.physics.add.existing(gfx);
+            gfx.body.setCircle(r, -r, -r);
+            gfx.tipo = 'moeda'; gfx.peso = 1.5; gfx.valor = 3;
+            item = gfx;
+
         } else {
-            raio = 15; valor = 1; peso = 1.0; cor = 0xffaa00;
+            // Moeda $1: círculo âmbar com símbolo $
+            let r = 15;
+            let pos = acharPosicaoValida(r);
+            let container = this.add.container(pos.x, pos.y);
+            let gfx = this.add.graphics();
+            gfx.fillStyle(0xffaa00, 1);
+            gfx.fillCircle(0, 0, r);
+            let txt = this.add.text(0, 0, '$', {
+                fontSize: '14px', fontStyle: 'bold', color: '#ffffff'
+            }).setOrigin(0.5);
+            container.add([gfx, txt]);
+            this.physics.add.existing(container);
+            container.body.setCircle(r, -r, -r);
+            container.tipo = 'moeda'; container.peso = 1.0; container.valor = 1;
+            item = container;
         }
 
-        let pos = acharPosicaoValida(raio);
-        let item = this.add.circle(pos.x, pos.y, raio, cor);
-        this.physics.add.existing(item);
-        item.tipo = 'moeda'; item.peso = peso; item.valor = valor;
         grupoObjetos.add(item);
     }
 
     for(let i = 0; i < 9; i++) {
         let chance = Phaser.Math.Between(1, 100);
-        let raio, peso, cor;
+        let item;
 
         if (chance > 60) {
-            raio = 45; peso = 8.0; cor = 0x444444;
+            // Pedra grande: blob assimétrico cinza com reflexo
+            let r = 45;
+            let pos = acharPosicaoValida(r);
+            let gfx = this.add.graphics({ x: pos.x, y: pos.y });
+            gfx.fillStyle(0x444444, 1);
+            gfx.fillCircle(0, 0, r);
+            gfx.fillStyle(0x333333, 1);
+            gfx.fillEllipse(10, 12, 35, 28);
+            gfx.fillStyle(0x888888, 0.5);
+            gfx.fillEllipse(-14, -16, 18, 12);
+            this.physics.add.existing(gfx);
+            gfx.body.setCircle(r, -r, -r);
+            gfx.tipo = 'pedra_pesada'; gfx.peso = 8.0; gfx.valor = 0;
+            item = gfx;
+
         } else {
-            raio = 20; peso = 4.0; cor = 0x888888;
+            // Pedra pequena: triângulo cinza com destaque
+            let r = 20;
+            let pos = acharPosicaoValida(r);
+            let gfx = this.add.graphics({ x: pos.x, y: pos.y });
+            let triPts = [
+                { x: 0,  y: -r },
+                { x: r,  y: r * 0.8 },
+                { x: -r, y: r * 0.8 }
+            ];
+            gfx.fillStyle(0x888888, 1);
+            gfx.fillPoints(triPts, true);
+            gfx.lineStyle(2, 0x666666, 1);
+            gfx.strokePoints(triPts, true);
+            gfx.fillStyle(0xaaaaaa, 0.55);
+            gfx.fillPoints([
+                { x: 0,        y: -r * 0.6 },
+                { x: r * 0.38, y: -r * 0.05 },
+                { x: -r * 0.38, y: -r * 0.05 }
+            ], true);
+            this.physics.add.existing(gfx);
+            gfx.body.setCircle(r, -r, -r);
+            gfx.tipo = 'pedra_pesada'; gfx.peso = 4.0; gfx.valor = 0;
+            item = gfx;
         }
 
-        let pos = acharPosicaoValida(raio);
-        let pedra = this.add.circle(pos.x, pos.y, raio, cor);
-        this.physics.add.existing(pedra);
-        pedra.tipo = 'pedra_pesada'; pedra.peso = peso; pedra.valor = 0;
-        grupoObjetos.add(pedra);
+        grupoObjetos.add(item);
     }
 }
 
@@ -741,15 +820,41 @@ function spawnarFragmento() {
         if (!esperandoProximaFase && !jogoAcabou) textoCentro.setText('');
     });
 
-    let pos = acharPosicaoValida(25);
-    let fragmentoFisico = this.add.rectangle(pos.x, pos.y, 25, 25, 0x00ffff);
-    this.physics.add.existing(fragmentoFisico);
+    let r = 16;
+    let pos = acharPosicaoValida(r);
+    let container = this.add.container(pos.x, pos.y);
+    let gfx = this.add.graphics();
 
-    fragmentoFisico.tipo = 'fragmento';
-    fragmentoFisico.peso = 2;
-    fragmentoFisico.valor = 0;
+    // Losango ciano pulsante com cruz
+    gfx.fillStyle(0x00ffff, 1);
+    gfx.fillPoints([{x:0,y:-r},{x:r,y:0},{x:0,y:r},{x:-r,y:0}], true);
+    gfx.lineStyle(2, 0xffffff, 0.85);
+    gfx.strokePoints([{x:0,y:-r},{x:r,y:0},{x:0,y:r},{x:-r,y:0}], true);
+    let cr = r * 0.48;
+    gfx.lineStyle(2, 0xffffff, 0.7);
+    gfx.lineBetween(0, -cr, 0, cr);
+    gfx.lineBetween(-cr, 0, cr, 0);
 
-    grupoObjetos.add(fragmentoFisico);
+    container.add(gfx);
+    this.physics.add.existing(container);
+    container.body.setCircle(r, -r, -r);
+
+    container.tipo = 'fragmento';
+    container.peso = 2;
+    container.valor = 0;
+
+    this.tweens.add({
+        targets: container,
+        scaleX: 1.22,
+        scaleY: 1.22,
+        alpha: 0.72,
+        duration: 480,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+    });
+
+    grupoObjetos.add(container);
 }
 
 function diminuirTempo() {
