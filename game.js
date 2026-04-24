@@ -24,7 +24,7 @@ let estamina = 150;
 let estaminaMaxima = 150;
 
 let graficoEnergia, graficoTempoPizza, graficoMarcadores;
-let textoHUD, textoCentro;
+let textoHUD, textoCentro, barraEstamina, labelBoost;
 let teclaEspaco;
 
 let posicoesOcupadas = [];
@@ -436,6 +436,94 @@ class TutorialScene extends Phaser.Scene {
 
 
 // =============================================================================
+//  CLASSE UTILITÁRIA: SLIDER DE VOLUME
+// =============================================================================
+class SliderVolume {
+    constructor(scene, cx, sy, sw, muteY, onVolumeChange) {
+        this._scene = scene;
+        this._SX = cx - sw / 2;
+        this._SY = sy;
+        this._SW = sw;
+        this._cx = cx;
+        this._muteY = muteY;
+        this._onVolumeChange = onVolumeChange || null;
+        this._arrastando = false;
+        this._volAntesMute = null;
+
+        let trilha = scene.add.graphics();
+        trilha.fillStyle(0x2a1800, 1);
+        trilha.fillRoundedRect(this._SX, sy - 8, sw, 16, 8);
+        trilha.lineStyle(1, 0x7a5c00, 1);
+        trilha.strokeRoundedRect(this._SX, sy - 8, sw, 16, 8);
+
+        this.sliderFill = scene.add.graphics();
+        this.handle = scene.add.circle(this._SX + volumeGlobal * sw, sy, 20, 0xd4af37);
+        this.handle.setStrokeStyle(3, 0x5c3a00);
+
+        this.textoVol = scene.add.text(cx, sy + 60, `${Math.round(volumeGlobal * 100)}%`, {
+            fontFamily: 'Arial', fontSize: '34px', fontStyle: 'bold', color: '#d4af37'
+        }).setOrigin(0.5);
+
+        this._atualizarSlider();
+
+        let zonaSlider = scene.add.zone(cx, sy, sw + 60, 70).setInteractive({ useHandCursor: true });
+        zonaSlider.on('pointerdown', (ptr) => { this._arrastando = true; this._moverSlider(ptr.x); });
+        scene.input.on('pointermove', (ptr) => { if (this._arrastando) this._moverSlider(ptr.x); });
+        scene.input.on('pointerup', () => {
+            if (this._arrastando) {
+                this._arrastando = false;
+                localStorage.setItem('museuVolume', volumeGlobal);
+            }
+        });
+
+        this._muteBg = scene.add.graphics();
+        this._muteTxt = scene.add.text(cx, muteY, '🔇  MUDO', {
+            fontFamily: 'Arial', fontSize: '24px', fontStyle: 'bold',
+            color: volumeGlobal === 0 ? '#d4af37' : '#664422'
+        }).setOrigin(0.5);
+        this._desenharMute(volumeGlobal === 0);
+
+        let zonaMute = scene.add.zone(cx, muteY, 200, 50).setInteractive({ useHandCursor: true });
+        zonaMute.on('pointerdown', () => {
+            if (volumeGlobal > 0) {
+                this._volAntesMute = volumeGlobal;
+                this._moverSlider(this._SX);
+            } else {
+                this._moverSlider(this._SX + (this._volAntesMute || 1.0) * this._SW);
+            }
+            localStorage.setItem('museuVolume', volumeGlobal);
+        });
+    }
+
+    _moverSlider(mouseX) {
+        let novoX = Phaser.Math.Clamp(mouseX, this._SX, this._SX + this._SW);
+        volumeGlobal = (novoX - this._SX) / this._SW;
+        this.handle.x = novoX;
+        this.textoVol.setText(`${Math.round(volumeGlobal * 100)}%`);
+        this._atualizarSlider();
+        this._desenharMute(volumeGlobal === 0);
+        this._muteTxt.setColor(volumeGlobal === 0 ? '#d4af37' : '#664422');
+        this._scene.sound.volume = volumeGlobal;
+        if (this._onVolumeChange) this._onVolumeChange(volumeGlobal);
+    }
+
+    _atualizarSlider() {
+        this.sliderFill.clear();
+        if (volumeGlobal > 0) {
+            this.sliderFill.fillStyle(0xd4af37, 1);
+            this.sliderFill.fillRoundedRect(this._SX, this._SY - 8, volumeGlobal * this._SW, 16, { tl: 8, bl: 8, tr: 0, br: 0 });
+        }
+    }
+
+    _desenharMute(ativo) {
+        this._muteBg.clear();
+        this._muteBg.lineStyle(2, ativo ? 0xd4af37 : 0x443322, 1);
+        this._muteBg.strokeRoundedRect(this._cx - 90, this._muteY - 22, 180, 45, 8);
+    }
+}
+
+
+// =============================================================================
 //  CENA 4: OPÇÕES
 // =============================================================================
 class OptionsScene extends Phaser.Scene {
@@ -445,7 +533,6 @@ class OptionsScene extends Phaser.Scene {
 
     create() {
         const W = 1024, H = 768;
-        this.arrastando = false;
 
         this.add.rectangle(0, 0, W, H / 2, 0x1a0800).setOrigin(0, 0);
         this.add.rectangle(0, H / 2, W, H / 2, 0x3e2000).setOrigin(0, 0);
@@ -469,80 +556,13 @@ class OptionsScene extends Phaser.Scene {
         this.add.text(W / 2 - 240, 330, '🔇', { fontSize: '28px' }).setOrigin(0.5);
         this.add.text(W / 2 + 240, 330, '🔊', { fontSize: '28px' }).setOrigin(0.5);
 
-        const SX = W / 2 - 200;
-        const SY = 330;
-        const SW = 400;
-        this._SX = SX; this._SY = SY; this._SW = SW;
-
-        let trilha = this.add.graphics();
-        trilha.fillStyle(0x2a1800, 1);
-        trilha.fillRoundedRect(SX, SY - 8, SW, 16, 8);
-        trilha.lineStyle(1, 0x7a5c00, 1);
-        trilha.strokeRoundedRect(SX, SY - 8, SW, 16, 8);
-
-        this.sliderFill = this.add.graphics();
-        this.handle = this.add.circle(SX + volumeGlobal * SW, SY, 20, 0xd4af37);
-        this.handle.setStrokeStyle(3, 0x5c3a00);
-
-        this.textoVol = this.add.text(W / 2, 390, `${Math.round(volumeGlobal * 100)}%`, {
-            fontFamily: 'Arial', fontSize: '34px', fontStyle: 'bold', color: '#d4af37'
-        }).setOrigin(0.5);
-
-        this._atualizarSlider();
-
-        let zonaSlider = this.add.zone(W / 2, SY, SW + 60, 70).setInteractive({ useHandCursor: true });
-        zonaSlider.on('pointerdown', (ptr) => { this.arrastando = true; this._moverSlider(ptr.x); });
-        this.input.on('pointermove', (ptr) => { if (this.arrastando) this._moverSlider(ptr.x); });
-        this.input.on('pointerup',   () => { if (this.arrastando) { this.arrastando = false; localStorage.setItem('museuVolume', volumeGlobal); } });
-
-        this._muteBg = this.add.graphics();
-        this._muteTxt = this.add.text(W / 2, 480, '🔇  MUDO', {
-            fontFamily: 'Arial', fontSize: '24px', fontStyle: 'bold', color: volumeGlobal === 0 ? '#d4af37' : '#664422'
-        }).setOrigin(0.5);
-
-        this._desenharMute(volumeGlobal === 0);
-
-        let zonaMute = this.add.zone(W / 2, 480, 200, 50).setInteractive({ useHandCursor: true });
-        zonaMute.on('pointerdown', () => {
-            if (volumeGlobal > 0) {
-                this._volAntesMute = volumeGlobal;
-                this._moverSlider(this._SX);
-            } else {
-                this._moverSlider(this._SX + (this._volAntesMute || 1.0) * this._SW);
-            }
-            localStorage.setItem('museuVolume', volumeGlobal);
-        });
+        new SliderVolume(this, W / 2, 330, 400, 480);
 
         this._criarBotaoVoltar(W / 2, 620, () => { this.scene.start('MenuScene'); });
 
         this.add.text(W / 2, 730, 'O volume será aplicado assim que o jogo iniciar', {
             fontFamily: 'Arial', fontSize: '14px', color: '#664422'
         }).setOrigin(0.5);
-    }
-
-    _moverSlider(mouseX) {
-        let novoX = Phaser.Math.Clamp(mouseX, this._SX, this._SX + this._SW);
-        volumeGlobal = (novoX - this._SX) / this._SW;
-        this.handle.x = novoX;
-        this.textoVol.setText(`${Math.round(volumeGlobal * 100)}%`);
-        this._atualizarSlider();
-        this._desenharMute(volumeGlobal === 0);
-        this._muteTxt.setColor(volumeGlobal === 0 ? '#d4af37' : '#664422');
-        this.sound.volume = volumeGlobal;
-    }
-
-    _atualizarSlider() {
-        this.sliderFill.clear();
-        if (volumeGlobal > 0) {
-            this.sliderFill.fillStyle(0xd4af37, 1);
-            this.sliderFill.fillRoundedRect(this._SX, this._SY - 8, volumeGlobal * this._SW, 16, { tl: 8, bl: 8, tr: 0, br: 0 });
-        }
-    }
-
-    _desenharMute(ativo) {
-        this._muteBg.clear();
-        this._muteBg.lineStyle(2, ativo ? 0xd4af37 : 0x443322, 1);
-        this._muteBg.strokeRoundedRect(1024 / 2 - 90, 458, 180, 45, 8);
     }
 
     _criarBotaoVoltar(x, y, callback) {
@@ -590,7 +610,6 @@ class PauseScene extends Phaser.Scene {
 
     create() {
         const W = 1024, H = 768;
-        this.arrastando = false;
 
         this.add.rectangle(0, 0, W, H, 0x000000, 0.65).setOrigin(0, 0);
 
@@ -608,47 +627,8 @@ class PauseScene extends Phaser.Scene {
             fontFamily: 'Arial', fontSize: '22px', color: '#bf8b6e'
         }).setOrigin(0.5);
 
-        const SX = W / 2 - 200;
-        const SY = 340;
-        const SW = 400;
-        this._SX = SX; this._SY = SY; this._SW = SW;
-
-        let trilha = this.add.graphics();
-        trilha.fillStyle(0x2a1800, 1);
-        trilha.fillRoundedRect(SX, SY - 8, SW, 16, 8);
-        trilha.lineStyle(1, 0x7a5c00, 1);
-        trilha.strokeRoundedRect(SX, SY - 8, SW, 16, 8);
-
-        this.sliderFill = this.add.graphics();
-        this.handle = this.add.circle(SX + volumeGlobal * SW, SY, 20, 0xd4af37);
-        this.handle.setStrokeStyle(3, 0x5c3a00);
-
-        this.textoVol = this.add.text(W / 2, 400, `${Math.round(volumeGlobal * 100)}%`, {
-            fontFamily: 'Arial', fontSize: '34px', fontStyle: 'bold', color: '#d4af37'
-        }).setOrigin(0.5);
-
-        this._atualizarSlider();
-
-        let zonaSlider = this.add.zone(W / 2, SY, SW + 60, 70).setInteractive({ useHandCursor: true });
-        zonaSlider.on('pointerdown', (ptr) => { this.arrastando = true; this._moverSlider(ptr.x); });
-        this.input.on('pointermove', (ptr) => { if (this.arrastando) this._moverSlider(ptr.x); });
-        this.input.on('pointerup',   () => { if (this.arrastando) { this.arrastando = false; localStorage.setItem('museuVolume', volumeGlobal); } });
-
-        this._muteBg = this.add.graphics();
-        this._muteTxt = this.add.text(W / 2, 470, '🔇  MUDO', {
-            fontFamily: 'Arial', fontSize: '24px', fontStyle: 'bold', color: volumeGlobal === 0 ? '#d4af37' : '#664422'
-        }).setOrigin(0.5);
-        this._desenharMute(volumeGlobal === 0);
-
-        let zonaMute = this.add.zone(W / 2, 470, 200, 50).setInteractive({ useHandCursor: true });
-        zonaMute.on('pointerdown', () => {
-            if (volumeGlobal > 0) {
-                this._volAntesMute = volumeGlobal;
-                this._moverSlider(this._SX);
-            } else {
-                this._moverSlider(this._SX + (this._volAntesMute || 1.0) * this._SW);
-            }
-            localStorage.setItem('museuVolume', volumeGlobal);
+        new SliderVolume(this, W / 2, 340, 400, 470, (vol) => {
+            this.scene.get(this.parentScene).sound.volume = vol;
         });
 
         this._criarBotao(W / 2, 540, 'CONTINUAR', true, () => { this._retomarJogo(); });
@@ -660,32 +640,6 @@ class PauseScene extends Phaser.Scene {
 
         this.input.keyboard.on('keydown-ESC', () => { this._retomarJogo(); });
         this.input.keyboard.on('keydown-SPACE', () => { this._retomarJogo(); });
-    }
-
-    _moverSlider(mouseX) {
-        let novoX = Phaser.Math.Clamp(mouseX, this._SX, this._SX + this._SW);
-        volumeGlobal = (novoX - this._SX) / this._SW;
-        this.handle.x = novoX;
-        this.textoVol.setText(`${Math.round(volumeGlobal * 100)}%`);
-        this._atualizarSlider();
-        this._desenharMute(volumeGlobal === 0);
-        this._muteTxt.setColor(volumeGlobal === 0 ? '#d4af37' : '#664422');
-        this.sound.volume = volumeGlobal;
-        this.scene.get(this.parentScene).sound.volume = volumeGlobal;
-    }
-
-    _atualizarSlider() {
-        this.sliderFill.clear();
-        if (volumeGlobal > 0) {
-            this.sliderFill.fillStyle(0xd4af37, 1);
-            this.sliderFill.fillRoundedRect(this._SX, this._SY - 8, volumeGlobal * this._SW, 16, { tl: 8, bl: 8, tr: 0, br: 0 });
-        }
-    }
-
-    _desenharMute(ativo) {
-        this._muteBg.clear();
-        this._muteBg.lineStyle(2, ativo ? 0xd4af37 : 0x443322, 1);
-        this._muteBg.strokeRoundedRect(1024 / 2 - 90, 448, 180, 45, 8);
     }
 
     _criarBotao(x, y, label, ativo, callback) {
@@ -768,6 +722,10 @@ function create() {
 
     textoHUD = this.add.text(10, 10, '', { font: '22px Arial', fill: '#fff', fontStyle: 'bold' });
     textoCentro = this.add.text(512, 384, '', { font: '45px Arial', fill: '#00ff00', fontStyle: 'bold', align: 'center' }).setOrigin(0.5);
+    barraEstamina = this.add.graphics();
+    labelBoost = this.add.text(220, 63, '⚡ BOOST [ESPAÇO]', {
+        font: '16px Arial', fill: '#ffff00', fontStyle: 'bold'
+    }).setVisible(false);
 
     let cx = 920;
     let cy = 100;
@@ -852,120 +810,116 @@ function montarFase() {
     atualizarHUD();
     textoCentro.setText('');
 
-    // Gerador blindado: Diamante tá levinho (0.5)!
-    for(let i = 0; i < 18; i++) {
-        let chance = Phaser.Math.Between(1, 100);
-        let item;
+    // Distribuição fixa de objetos por cenário
+    const cfgCenario = [
+        { m5: 2, m3: 6, m1: 8,  pGrande: 2, pPequena: 4 },  // Cenário 1 — introdução
+        { m5: 3, m3: 7, m1: 9,  pGrande: 3, pPequena: 5 },  // Cenário 2 — intermediário
+        { m5: 4, m3: 8, m1: 10, pGrande: 5, pPequena: 6 },  // Cenário 3 — avançado
+    ];
+    const cfg = cfgCenario[Phaser.Math.Clamp(cenarioAtual - 1, 0, 2)];
 
-        if (chance > 85) {
-            // Moeda $5: losango branco com borda dourada
-            let r = 10;
-            let pos = acharPosicaoValida(r);
-            let gfx = this.add.graphics({ x: pos.x, y: pos.y });
-            gfx.fillStyle(0xffffff, 1);
-            gfx.fillPoints([{x:0,y:-r},{x:r,y:0},{x:0,y:r},{x:-r,y:0}], true);
-            gfx.lineStyle(2, 0xd4af37, 1);
-            gfx.strokePoints([{x:0,y:-r},{x:r,y:0},{x:0,y:r},{x:-r,y:0}], true);
-            this.physics.add.existing(gfx);
-            gfx.body.setCircle(r, -r, -r);
-            gfx.tipo = 'moeda'; gfx.peso = 0.5; gfx.valor = 5;
-            item = gfx;
-
-        } else if (chance > 50) {
-            // Moeda $3: hexágono dourado com detalhe interno
-            let r = 25;
-            let pos = acharPosicaoValida(r);
-            let gfx = this.add.graphics({ x: pos.x, y: pos.y });
-            let pts = [];
-            for (let k = 0; k < 6; k++) {
-                let a = (Math.PI / 3) * k - Math.PI / 2;
-                pts.push({ x: Math.cos(a) * r, y: Math.sin(a) * r });
-            }
-            gfx.fillStyle(0xd4af37, 1);
-            gfx.fillPoints(pts, true);
-            gfx.lineStyle(2, 0xffd700, 1);
-            gfx.strokePoints(pts, true);
-            let ri = Math.round(r * 0.5);
-            let ptsI = [];
-            for (let k = 0; k < 6; k++) {
-                let a = (Math.PI / 3) * k - Math.PI / 2;
-                ptsI.push({ x: Math.cos(a) * ri, y: Math.sin(a) * ri });
-            }
-            gfx.lineStyle(1.5, 0xffffff, 0.4);
-            gfx.strokePoints(ptsI, true);
-            this.physics.add.existing(gfx);
-            gfx.body.setCircle(r, -r, -r);
-            gfx.tipo = 'moeda'; gfx.peso = 1.5; gfx.valor = 3;
-            item = gfx;
-
-        } else {
-            // Moeda $1: círculo âmbar com símbolo $
-            let r = 15;
-            let pos = acharPosicaoValida(r);
-            let container = this.add.container(pos.x, pos.y);
-            let gfx = this.add.graphics();
-            gfx.fillStyle(0xffaa00, 1);
-            gfx.fillCircle(0, 0, r);
-            let txt = this.add.text(0, 0, '$', {
-                fontSize: '14px', fontStyle: 'bold', color: '#ffffff'
-            }).setOrigin(0.5);
-            container.add([gfx, txt]);
-            this.physics.add.existing(container);
-            container.body.setCircle(r, -r, -r);
-            container.tipo = 'moeda'; container.peso = 1.0; container.valor = 1;
-            item = container;
-        }
-
-        grupoObjetos.add(item);
+    // Moeda $5: losango branco com borda dourada
+    for (let i = 0; i < cfg.m5; i++) {
+        let r = 10;
+        let pos = acharPosicaoValida(r);
+        let gfx = this.add.graphics({ x: pos.x, y: pos.y });
+        gfx.fillStyle(0xffffff, 1);
+        gfx.fillPoints([{x:0,y:-r},{x:r,y:0},{x:0,y:r},{x:-r,y:0}], true);
+        gfx.lineStyle(2, 0xd4af37, 1);
+        gfx.strokePoints([{x:0,y:-r},{x:r,y:0},{x:0,y:r},{x:-r,y:0}], true);
+        this.physics.add.existing(gfx);
+        gfx.body.setCircle(r, -r, -r);
+        gfx.tipo = 'moeda'; gfx.peso = 0.5; gfx.valor = 5;
+        grupoObjetos.add(gfx);
     }
 
-    for(let i = 0; i < 9; i++) {
-        let chance = Phaser.Math.Between(1, 100);
-        let item;
-
-        if (chance > 60) {
-            // Pedra grande: blob assimétrico cinza com reflexo
-            let r = 45;
-            let pos = acharPosicaoValida(r);
-            let gfx = this.add.graphics({ x: pos.x, y: pos.y });
-            gfx.fillStyle(0x444444, 1);
-            gfx.fillCircle(0, 0, r);
-            gfx.fillStyle(0x333333, 1);
-            gfx.fillEllipse(10, 12, 35, 28);
-            gfx.fillStyle(0x888888, 0.5);
-            gfx.fillEllipse(-14, -16, 18, 12);
-            this.physics.add.existing(gfx);
-            gfx.body.setCircle(r, -r, -r);
-            gfx.tipo = 'pedra_pesada'; gfx.peso = 8.0; gfx.valor = 0;
-            item = gfx;
-
-        } else {
-            // Pedra pequena: triângulo cinza com destaque
-            let r = 20;
-            let pos = acharPosicaoValida(r);
-            let gfx = this.add.graphics({ x: pos.x, y: pos.y });
-            let triPts = [
-                { x: 0,  y: -r },
-                { x: r,  y: r * 0.8 },
-                { x: -r, y: r * 0.8 }
-            ];
-            gfx.fillStyle(0x888888, 1);
-            gfx.fillPoints(triPts, true);
-            gfx.lineStyle(2, 0x666666, 1);
-            gfx.strokePoints(triPts, true);
-            gfx.fillStyle(0xaaaaaa, 0.55);
-            gfx.fillPoints([
-                { x: 0,        y: -r * 0.6 },
-                { x: r * 0.38, y: -r * 0.05 },
-                { x: -r * 0.38, y: -r * 0.05 }
-            ], true);
-            this.physics.add.existing(gfx);
-            gfx.body.setCircle(r, -r, -r);
-            gfx.tipo = 'pedra_pesada'; gfx.peso = 4.0; gfx.valor = 0;
-            item = gfx;
+    // Moeda $3: hexágono dourado com detalhe interno
+    for (let i = 0; i < cfg.m3; i++) {
+        let r = 25;
+        let pos = acharPosicaoValida(r);
+        let gfx = this.add.graphics({ x: pos.x, y: pos.y });
+        let pts = [];
+        for (let k = 0; k < 6; k++) {
+            let a = (Math.PI / 3) * k - Math.PI / 2;
+            pts.push({ x: Math.cos(a) * r, y: Math.sin(a) * r });
         }
+        gfx.fillStyle(0xd4af37, 1);
+        gfx.fillPoints(pts, true);
+        gfx.lineStyle(2, 0xffd700, 1);
+        gfx.strokePoints(pts, true);
+        let ri = Math.round(r * 0.5);
+        let ptsI = [];
+        for (let k = 0; k < 6; k++) {
+            let a = (Math.PI / 3) * k - Math.PI / 2;
+            ptsI.push({ x: Math.cos(a) * ri, y: Math.sin(a) * ri });
+        }
+        gfx.lineStyle(1.5, 0xffffff, 0.4);
+        gfx.strokePoints(ptsI, true);
+        this.physics.add.existing(gfx);
+        gfx.body.setCircle(r, -r, -r);
+        gfx.tipo = 'moeda'; gfx.peso = 1.5; gfx.valor = 3;
+        grupoObjetos.add(gfx);
+    }
 
-        grupoObjetos.add(item);
+    // Moeda $1: círculo âmbar com símbolo $
+    for (let i = 0; i < cfg.m1; i++) {
+        let r = 15;
+        let pos = acharPosicaoValida(r);
+        let container = this.add.container(pos.x, pos.y);
+        let gfx = this.add.graphics();
+        gfx.fillStyle(0xffaa00, 1);
+        gfx.fillCircle(0, 0, r);
+        let txt = this.add.text(0, 0, '$', {
+            fontSize: '14px', fontStyle: 'bold', color: '#ffffff'
+        }).setOrigin(0.5);
+        container.add([gfx, txt]);
+        this.physics.add.existing(container);
+        container.body.setCircle(r, -r, -r);
+        container.tipo = 'moeda'; container.peso = 1.0; container.valor = 1;
+        grupoObjetos.add(container);
+    }
+
+    // Pedra grande: blob assimétrico cinza com reflexo
+    for (let i = 0; i < cfg.pGrande; i++) {
+        let r = 45;
+        let pos = acharPosicaoValida(r);
+        let gfx = this.add.graphics({ x: pos.x, y: pos.y });
+        gfx.fillStyle(0x444444, 1);
+        gfx.fillCircle(0, 0, r);
+        gfx.fillStyle(0x333333, 1);
+        gfx.fillEllipse(10, 12, 35, 28);
+        gfx.fillStyle(0x888888, 0.5);
+        gfx.fillEllipse(-14, -16, 18, 12);
+        this.physics.add.existing(gfx);
+        gfx.body.setCircle(r, -r, -r);
+        gfx.tipo = 'pedra_pesada'; gfx.peso = 8.0; gfx.valor = 0;
+        grupoObjetos.add(gfx);
+    }
+
+    // Pedra pequena: triângulo cinza com destaque
+    for (let i = 0; i < cfg.pPequena; i++) {
+        let r = 20;
+        let pos = acharPosicaoValida(r);
+        let gfx = this.add.graphics({ x: pos.x, y: pos.y });
+        let triPts = [
+            { x: 0,  y: -r },
+            { x: r,  y: r * 0.8 },
+            { x: -r, y: r * 0.8 }
+        ];
+        gfx.fillStyle(0x888888, 1);
+        gfx.fillPoints(triPts, true);
+        gfx.lineStyle(2, 0x666666, 1);
+        gfx.strokePoints(triPts, true);
+        gfx.fillStyle(0xaaaaaa, 0.55);
+        gfx.fillPoints([
+            { x: 0,         y: -r * 0.6 },
+            { x: r * 0.38,  y: -r * 0.05 },
+            { x: -r * 0.38, y: -r * 0.05 }
+        ], true);
+        this.physics.add.existing(gfx);
+        gfx.body.setCircle(r, -r, -r);
+        gfx.tipo = 'pedra_pesada'; gfx.peso = 4.0; gfx.valor = 0;
+        grupoObjetos.add(gfx);
     }
 }
 
@@ -1115,6 +1069,22 @@ function update() {
         graficoEnergia.arc(920, 100, 56, -Math.PI / 2, anguloFimE, false);
         graficoEnergia.strokePath();
     }
+
+    // Barra horizontal de estamina
+    barraEstamina.clear();
+    let propE = estamina / estaminaMaxima;
+    let corB = propE > 0.5 ? 0x00dd44 : propE > 0.20 ? 0xffaa00 : 0xff2222;
+    let alphaB = propE < 0.20 ? (Math.sin(this.time.now * 0.012) * 0.4 + 0.6) : 1;
+    barraEstamina.fillStyle(0x222222, 0.75);
+    barraEstamina.fillRect(10, 65, 200, 11);
+    barraEstamina.fillStyle(corB, alphaB);
+    barraEstamina.fillRect(10, 65, Math.round(200 * propE), 11);
+    barraEstamina.lineStyle(1, 0x666666, 1);
+    barraEstamina.strokeRect(10, 65, 200, 11);
+    labelBoost.setVisible(
+        estadoGancho === 'SUBINDO' && objetoPuxado !== null &&
+        objetoPuxado.tipo === 'pedra_pesada' && estamina > 10
+    );
 
     graficoTempoPizza.clear();
     let porcentagemTempoPerdido = (100 - tempoRestante) / 100;
