@@ -1,14 +1,19 @@
 // =============================================================================
-//  VARIÁVEIS GLOBAIS
+// 1. VARIÁVEIS GLOBAIS E CONFIGURAÇÕES
+// Aqui eu defino as configurações fixas (const) e as variáveis que mudam 
+// durante a gameplay (let), como a pontuação e os objetos da garra.
 // =============================================================================
 let volumeGlobal = 1.0;   
 
 let gancho, linhaCorda, grupoObjetos;
 let estadoGancho = 'BALANCANDO', anguloGancho = 0, balancandoParaDireita = true;
-let velocidadeBalanço = 1.0, velocidadeMaxima = 4.0, velocidadeTiroPadrao = 8, objetoPuxado = null;
+
+const velocidadeMaxima = 4.0;
+const velocidadeTiroPadrao = 8;
+let velocidadeBalanço = 1.0, objetoPuxado = null;
 
 let moedasColetadas = 0;
-let metaMoedas = 25;
+const metaMoedas = 25;
 
 let cenarioAtual = 1;
 let faseNoCenario = 1;
@@ -21,17 +26,18 @@ let esperandoProximaFase = false;
 let fragmentoRevelado = false;
 
 let estamina = 150;
-let estaminaMaxima = 150;
+const estaminaMaxima = 150;
 
-let graficoEnergia, graficoTempoPizza, graficoMarcadores;
-let textoHUD, textoCentro, barraEstamina, labelBoost;
+let graficoTempoPizza;
+let textoHUD, textoCentro, barraEstamina, labelBoost, textoRelogio;
 let teclaEspaco;
 
 let posicoesOcupadas = [];
 
-
 // =============================================================================
-//  FUNÇÕES DE SAVE (MEMORY CARD)
+// 2. SISTEMA DE MEMORY CARD (LOCALSTORAGE)
+// Funções que criei para salvar, carregar e resetar o progresso do jogador 
+// direto no navegador, garantindo que ele não perca as relíquias.
 // =============================================================================
 function salvarJogo() {
     let save = { cenario: cenarioAtual, fase: faseNoCenario, fragmentos: fragmentosAtuais, reliquias: reliquiasCompletas };
@@ -53,9 +59,10 @@ function limparSave() {
     localStorage.removeItem('museuSave');
 }
 
-
 // =============================================================================
-//  CENA 1: MENU PRINCIPAL
+// 3. TELA INICIAL (MENU PRINCIPAL)
+// Essa cena monta a interface de entrada com fundo animado e os botões que 
+// redirecionam o jogador para o jogo, inventário, tutorial e opções.
 // =============================================================================
 class MenuScene extends Phaser.Scene {
     constructor() {
@@ -106,7 +113,6 @@ class MenuScene extends Phaser.Scene {
         div.lineStyle(2, 0xd4af37, 0.4);
         div.lineBetween(W / 2 - 220, 190, W / 2 + 220, 190);
 
-        // Botoes
         this._criarBotao(W / 2, 260, 'NOVO JOGO', true, () => {
             limparSave();
             cenarioAtual = 1; faseNoCenario = 1; fragmentosAtuais = 0; reliquiasCompletas = 0;
@@ -205,12 +211,10 @@ class MenuScene extends Phaser.Scene {
     }
 }
 
-
 // =============================================================================
-//  CENA 2: INVENTÁRIO 
-// =============================================================================
-// =============================================================================
-//  CENA 2: INVENTÁRIO (SISTEMA DE FRAGMENTAÇÃO)
+// 4. SALA DE EXPOSIÇÃO (INVENTÁRIO)
+// Aqui eu carrego as relíquias salvas e renderizo os fragmentos que o jogador 
+// já desbloqueou. O que não foi pego ainda, fica marcado como silhueta.
 // =============================================================================
 class InventoryScene extends Phaser.Scene {
     constructor() {
@@ -220,7 +224,6 @@ class InventoryScene extends Phaser.Scene {
     create() {
         const W = 1024, H = 768;
 
-        // Fundo e moldura
         this.add.rectangle(0, 0, W, H / 2, 0x1a0800).setOrigin(0, 0);
         this.add.rectangle(0, H / 2, W, H / 2, 0x3e2000).setOrigin(0, 0);
 
@@ -236,7 +239,6 @@ class InventoryScene extends Phaser.Scene {
             fontFamily: 'Arial', fontSize: '22px', color: '#bf8b6e'
         }).setOrigin(0.5);
 
-        // Puxa relíquias e os FRAGMENTOS pendentes do save
         let reliquiasSalvas = 0;
         let fragmentosSalvos = 0;
         let saveText = localStorage.getItem('museuSave');
@@ -255,32 +257,25 @@ class InventoryScene extends Phaser.Scene {
             let px = startX + (i * espacamento);
             let py = 350;
 
-            // Fundo do vidro do pedestal
             let bgSlot = this.add.graphics();
             bgSlot.fillStyle(0x000000, 0.6);
             bgSlot.fillRoundedRect(px - 100, py - 120, 200, 240, 16);
             bgSlot.lineStyle(2, 0xd4af37, 0.8);
             bgSlot.strokeRoundedRect(px - 100, py - 120, 200, 240, 16);
 
-            // Lógica braba: descobre quantos pedaços desenhar NESSE pedestal
             let fragsDestaReliquia = 0;
             if (reliquiasSalvas > i) {
-                fragsDestaReliquia = 3; // Já completou essa
+                fragsDestaReliquia = 3; 
             } else if (reliquiasSalvas === i) {
-                fragsDestaReliquia = fragmentosSalvos; // Tá montando essa
+                fragsDestaReliquia = fragmentosSalvos; 
             } else {
-                fragsDestaReliquia = 0; // Nem chegou nessa ainda
+                fragsDestaReliquia = 0; 
             }
 
-            // Desenha os 3 pedaços (de baixo para cima)
-            // Pedaço 1: Base (Larga e achatada)
             this._desenharFragmento(px, py + 30, 80, 30, coresReliquias[i], fragsDestaReliquia >= 1);
-            // Pedaço 2: Corpo (Médio)
             this._desenharFragmento(px, py - 5, 60, 40, coresReliquias[i], fragsDestaReliquia >= 2);
-            // Pedaço 3: Topo (Menor)
             this._desenharFragmento(px, py - 45, 50, 40, coresReliquias[i], fragsDestaReliquia >= 3);
 
-            // Textos de Status
             if (fragsDestaReliquia === 3) {
                 this.add.text(px, py + 85, nomesReliquias[i], {
                     fontFamily: 'Arial', fontSize: '18px', fontStyle: 'bold', color: '#00ff00', align: 'center'
@@ -290,7 +285,6 @@ class InventoryScene extends Phaser.Scene {
                     fontFamily: 'Arial', fontSize: '16px', fontStyle: 'bold', color: '#ffd700', align: 'center'
                 }).setOrigin(0.5);
             } else {
-                // Se tá zerado, mostra o Ponto de Interrogação grandão por cima do "fantasma" da relíquia
                 this.add.text(px, py - 10, '?', {
                     fontFamily: 'Arial', fontSize: '60px', fontStyle: 'bold', color: '#443322'
                 }).setOrigin(0.5);
@@ -303,7 +297,6 @@ class InventoryScene extends Phaser.Scene {
         this._criarBotaoVoltar(W / 2, 650, () => { this.scene.start('MenuScene'); });
     }
 
-    // Função marota pra desenhar a peça acesa (se pegou) ou apagada (fantasma)
     _desenharFragmento(x, y, w, h, cor, temPeca) {
         let gfx = this.add.graphics();
         if (temPeca) {
@@ -312,7 +305,6 @@ class InventoryScene extends Phaser.Scene {
             gfx.lineStyle(2, 0xffffff, 0.6);
             gfx.strokeRoundedRect(x - w/2, y - h/2, w, h, 4);
         } else {
-            // Desenha a silhueta pra dar o "gostinho" do encaixe pro jogador
             gfx.fillStyle(0x222222, 0.5);
             gfx.fillRoundedRect(x - w/2, y - h/2, w, h, 4);
             gfx.lineStyle(2, 0x444444, 0.5);
@@ -350,9 +342,9 @@ class InventoryScene extends Phaser.Scene {
     }
 }
 
-
 // =============================================================================
-//  CENA 3: TUTORIAL
+// 5. TELA DE TUTORIAL
+// Tela explicativa para o jogador entender a dinâmica do pêndulo e do boost.
 // =============================================================================
 class TutorialScene extends Phaser.Scene {
     constructor() {
@@ -434,9 +426,10 @@ class TutorialScene extends Phaser.Scene {
     }
 }
 
-
 // =============================================================================
-//  CLASSE UTILITÁRIA: SLIDER DE VOLUME
+// 6. CLASSE UTILITÁRIA: SLIDER DE VOLUME
+// Criei esse componente para não precisar reescrever a barrinha de áudio 
+// na tela de Opções e na tela de Pause.
 // =============================================================================
 class SliderVolume {
     constructor(scene, cx, sy, sw, muteY, onVolumeChange) {
@@ -522,9 +515,9 @@ class SliderVolume {
     }
 }
 
-
 // =============================================================================
-//  CENA 4: OPÇÕES
+// 7. OPÇÕES E PAUSE
+// Telas construídas para alterar parâmetros globais sem atrapalhar a gameplay.
 // =============================================================================
 class OptionsScene extends Phaser.Scene {
     constructor() {
@@ -595,10 +588,6 @@ class OptionsScene extends Phaser.Scene {
     }
 }
 
-
-// =============================================================================
-//  CENA 5: PAUSA
-// =============================================================================
 class PauseScene extends Phaser.Scene {
     constructor() {
         super({ key: 'PauseScene' });
@@ -677,9 +666,10 @@ class PauseScene extends Phaser.Scene {
     }
 }
 
-
 // =============================================================================
-//  CENA 6: JOGO PRINCIPAL
+// 8. O JOGO PRINCIPAL E A LÓGICA CORE
+// É aqui que a mágica acontece! A classe chama as lógicas do motor de física,
+// gera o cenário, calcula a velocidade do pêndulo e os itens na tela.
 // =============================================================================
 class GameScene extends Phaser.Scene {
     constructor() {
@@ -712,9 +702,6 @@ GameScene.prototype._abrirMenuPausa = function() {
     this.scene.pause();
 };
 
-// =============================================================================
-//  LÓGICA CORE DO JOGO (SISTEMA MARRETA)
-// =============================================================================
 function preload() {}
 
 function create() {
@@ -722,28 +709,62 @@ function create() {
 
     textoHUD = this.add.text(10, 10, '', { font: '22px Arial', fill: '#fff', fontStyle: 'bold' });
     textoCentro = this.add.text(512, 384, '', { font: '45px Arial', fill: '#00ff00', fontStyle: 'bold', align: 'center' }).setOrigin(0.5);
+
+    this.add.text(10, 60, '⚡ ENERGIA', {
+        font: '13px Arial', fill: '#ffdd55', fontStyle: 'bold'
+    });
     barraEstamina = this.add.graphics();
-    labelBoost = this.add.text(220, 63, '⚡ BOOST [ESPAÇO]', {
-        font: '16px Arial', fill: '#ffff00', fontStyle: 'bold'
+
+    labelBoost = this.add.text(250, 76, '⚡ BOOST!', {
+        font: '13px Arial', fill: '#ffff00', fontStyle: 'bold',
+        stroke: '#000000', strokeThickness: 3
     }).setVisible(false);
 
-    let cx = 920;
-    let cy = 100;
+    const cx = 920, cy = 108;
 
-    let fundoEnergia = this.add.graphics();
-    fundoEnergia.lineStyle(12, 0xff0000, 1);
-    fundoEnergia.strokeCircle(cx, cy, 56);
+    let clockShadow = this.add.graphics();
+    clockShadow.fillStyle(0x000000, 0.5);
+    clockShadow.fillCircle(cx + 3, cy + 3, 57);
 
-    graficoEnergia = this.add.graphics();
-    this.add.circle(cx, cy, 50, 0xbf8b6e);
-    graficoTempoPizza = this.add.graphics({x: cx, y: cy});
+    let clockFace = this.add.graphics();
+    clockFace.fillStyle(0x1c0f04, 1);
+    clockFace.fillCircle(cx, cy, 54);
 
-    let marcadores = this.add.graphics({x: cx, y: cy});
-    marcadores.lineStyle(3, 0x000000, 1);
-    marcadores.lineBetween(0, -40, 0, -50);
-    marcadores.lineBetween(40, 0, 50, 0);
-    marcadores.lineBetween(0, 40, 0, 50);
-    marcadores.lineBetween(-40, 0, -50, 0);
+    clockFace.lineStyle(1.5, 0xd4af37, 0.25);
+    clockFace.strokeCircle(cx, cy, 44);
+
+    clockFace.lineStyle(5, 0xd4af37, 1);
+    clockFace.strokeCircle(cx, cy, 55);
+    clockFace.lineStyle(1, 0xfff5cc, 0.35);
+    clockFace.strokeCircle(cx, cy, 58);
+
+    graficoTempoPizza = this.add.graphics({ x: cx, y: cy }).setDepth(1);
+
+    let tickGfx = this.add.graphics().setDepth(2);
+    for (let i = 0; i < 12; i++) {
+        let ang = (Math.PI * 2 / 12) * i - Math.PI / 2;
+        let isCard = (i % 3 === 0);
+        let r1 = isCard ? 38 : 42, r2 = 50;
+        let lw = isCard ? 3 : 1.5;
+        let alpha = isCard ? 1 : 0.6;
+        tickGfx.lineStyle(lw, 0xd4af37, alpha);
+        tickGfx.lineBetween(
+            cx + Math.cos(ang) * r1, cy + Math.sin(ang) * r1,
+            cx + Math.cos(ang) * r2, cy + Math.sin(ang) * r2
+        );
+    }
+
+    this.add.text(cx, cy - 24, 'TEMPO', {
+        font: '11px Arial', fill: '#bf8b6e', fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(3);
+
+    textoRelogio = this.add.text(cx, cy + 10, '100', {
+        font: 'bold 26px Arial', fill: '#f0e0b0', stroke: '#000000', strokeThickness: 3
+    }).setOrigin(0.5).setDepth(3);
+
+    let centerDot = this.add.graphics().setDepth(4);
+    centerDot.fillStyle(0xd4af37, 1);
+    centerDot.fillCircle(cx, cy, 4);
 
     grupoObjetos = this.physics.add.group();
     linhaCorda = this.add.graphics();
@@ -810,15 +831,13 @@ function montarFase() {
     atualizarHUD();
     textoCentro.setText('');
 
-    // Distribuição fixa de objetos por cenário
     const cfgCenario = [
-        { m5: 2, m3: 6, m1: 8,  pGrande: 2, pPequena: 4 },  // Cenário 1 — introdução
-        { m5: 3, m3: 7, m1: 9,  pGrande: 3, pPequena: 5 },  // Cenário 2 — intermediário
-        { m5: 4, m3: 8, m1: 10, pGrande: 5, pPequena: 6 },  // Cenário 3 — avançado
+        { m5: 2, m3: 6, m1: 8,  pGrande: 2, pPequena: 4 },  
+        { m5: 3, m3: 7, m1: 9,  pGrande: 3, pPequena: 5 },  
+        { m5: 4, m3: 8, m1: 10, pGrande: 5, pPequena: 6 },  
     ];
     const cfg = cfgCenario[Phaser.Math.Clamp(cenarioAtual - 1, 0, 2)];
 
-    // Moeda $5: losango branco com borda dourada
     for (let i = 0; i < cfg.m5; i++) {
         let r = 10;
         let pos = acharPosicaoValida(r);
@@ -833,7 +852,6 @@ function montarFase() {
         grupoObjetos.add(gfx);
     }
 
-    // Moeda $3: hexágono dourado com detalhe interno
     for (let i = 0; i < cfg.m3; i++) {
         let r = 25;
         let pos = acharPosicaoValida(r);
@@ -861,7 +879,6 @@ function montarFase() {
         grupoObjetos.add(gfx);
     }
 
-    // Moeda $1: círculo âmbar com símbolo $
     for (let i = 0; i < cfg.m1; i++) {
         let r = 15;
         let pos = acharPosicaoValida(r);
@@ -879,7 +896,6 @@ function montarFase() {
         grupoObjetos.add(container);
     }
 
-    // Pedra grande: blob assimétrico cinza com reflexo
     for (let i = 0; i < cfg.pGrande; i++) {
         let r = 45;
         let pos = acharPosicaoValida(r);
@@ -896,7 +912,6 @@ function montarFase() {
         grupoObjetos.add(gfx);
     }
 
-    // Pedra pequena: triângulo cinza com destaque
     for (let i = 0; i < cfg.pPequena; i++) {
         let r = 20;
         let pos = acharPosicaoValida(r);
@@ -912,7 +927,7 @@ function montarFase() {
         gfx.strokePoints(triPts, true);
         gfx.fillStyle(0xaaaaaa, 0.55);
         gfx.fillPoints([
-            { x: 0,         y: -r * 0.6 },
+            { x: 0,        y: -r * 0.6 },
             { x: r * 0.38,  y: -r * 0.05 },
             { x: -r * 0.38, y: -r * 0.05 }
         ], true);
@@ -936,7 +951,6 @@ function spawnarFragmento() {
     let container = this.add.container(pos.x, pos.y);
     let gfx = this.add.graphics();
 
-    // Losango ciano pulsante com cruz
     gfx.fillStyle(0x00ffff, 1);
     gfx.fillPoints([{x:0,y:-r},{x:r,y:0},{x:0,y:r},{x:-r,y:0}], true);
     gfx.lineStyle(2, 0xffffff, 0.85);
@@ -1057,47 +1071,49 @@ function update() {
         if (estamina > estaminaMaxima) estamina = estaminaMaxima;
     }
 
-    graficoEnergia.clear();
-    let porcentagemE = estamina / estaminaMaxima;
-
-    if (porcentagemE > 0) {
-        if (porcentagemE < 0.20) graficoEnergia.lineStyle(12, 0xffff00, 1);
-        else graficoEnergia.lineStyle(12, 0x00ff00, 1);
-
-        graficoEnergia.beginPath();
-        let anguloFimE = (-Math.PI / 2) + (porcentagemE * 2 * Math.PI);
-        graficoEnergia.arc(920, 100, 56, -Math.PI / 2, anguloFimE, false);
-        graficoEnergia.strokePath();
-    }
-
-    // Barra horizontal de estamina
     barraEstamina.clear();
     let propE = estamina / estaminaMaxima;
-    let corB = propE > 0.5 ? 0x00dd44 : propE > 0.20 ? 0xffaa00 : 0xff2222;
+    let corB  = propE > 0.50 ? 0x44cc44 : propE > 0.20 ? 0xffaa00 : 0xff3333;
     let alphaB = propE < 0.20 ? (Math.sin(this.time.now * 0.012) * 0.4 + 0.6) : 1;
-    barraEstamina.fillStyle(0x222222, 0.75);
-    barraEstamina.fillRect(10, 65, 200, 11);
-    barraEstamina.fillStyle(corB, alphaB);
-    barraEstamina.fillRect(10, 65, Math.round(200 * propE), 11);
-    barraEstamina.lineStyle(1, 0x666666, 1);
-    barraEstamina.strokeRect(10, 65, 200, 11);
+
+    barraEstamina.fillStyle(0x111111, 0.9);
+    barraEstamina.fillRoundedRect(10, 76, 230, 16, 6);
+    barraEstamina.fillStyle(0x000000, 0.3);
+    barraEstamina.fillRoundedRect(10, 78, 230, 14, 5);
+
+    let fillW = Math.max(0, Math.round(230 * propE));
+    if (fillW > 0) {
+        barraEstamina.fillStyle(corB, alphaB);
+        barraEstamina.fillRoundedRect(10, 76, fillW, 16, 6);
+        barraEstamina.fillStyle(0xffffff, 0.18);
+        barraEstamina.fillRoundedRect(12, 77, Math.max(0, fillW - 4), 5, 3);
+    }
+
+    barraEstamina.lineStyle(1, 0x666666, 0.9);
+    barraEstamina.strokeRoundedRect(10, 76, 230, 16, 6);
+
     labelBoost.setVisible(
         estadoGancho === 'SUBINDO' && objetoPuxado !== null &&
         objetoPuxado.tipo === 'pedra_pesada' && estamina > 10
     );
 
+    textoRelogio.setText(String(Math.max(0, tempoRestante)));
+    if (tempoRestante <= 20) {
+        textoRelogio.setColor(Math.floor(this.time.now / 400) % 2 === 0 ? '#ff4444' : '#ffaa00');
+    } else {
+        textoRelogio.setColor('#f0e0b0');
+    }
+
     graficoTempoPizza.clear();
     let porcentagemTempoPerdido = (100 - tempoRestante) / 100;
 
     if (porcentagemTempoPerdido > 0) {
-        graficoTempoPizza.fillStyle(0x111111, 0.85);
+        graficoTempoPizza.fillStyle(0x000000, 0.80);
         graficoTempoPizza.beginPath();
         graficoTempoPizza.moveTo(0, 0);
-
         let anguloInicioPizza = -Math.PI / 2;
-        let anguloFimPizza = anguloInicioPizza + (porcentagemTempoPerdido * 2 * Math.PI);
-
-        graficoTempoPizza.arc(0, 0, 50, anguloInicioPizza, anguloFimPizza, false);
+        let anguloFimPizza    = anguloInicioPizza + (porcentagemTempoPerdido * 2 * Math.PI);
+        graficoTempoPizza.arc(0, 0, 43, anguloInicioPizza, anguloFimPizza, false);
         graficoTempoPizza.closePath();
         graficoTempoPizza.fillPath();
     }
@@ -1141,10 +1157,8 @@ function update() {
         gancho.x -= Math.sin(radianos) * velocidadeAtual;
         gancho.y -= Math.cos(radianos) * velocidadeAtual;
 
-        // O SEGREDO TÁ AQUI EMBAIXO: Tirei aquela maracutaia de velocidade aleatória que quebrou seu jogo. 
         if (gancho.y <= 100) {
             estadoGancho = 'BALANCANDO';
-            // Deixei só o angulo mudando pra garra não cair sempre reta
             anguloGancho = Phaser.Math.Between(-55, 55); 
             balancandoParaDireita = anguloGancho < 0 ? true : Phaser.Math.Between(0, 1) === 0;
 
@@ -1246,9 +1260,9 @@ function pegarObjeto(ganchoObjeto, objetoAtingido) {
     }
 }
 
-
 // =============================================================================
-//  CONFIGURAÇÃO E INICIALIZAÇÃO DO PHASER
+// 9. CONFIGURAÇÃO FINAL DO PHASER
+// É aqui que eu junto todas as cenas criadas e inicio a Engine do jogo.
 // =============================================================================
 const config = {
     type: Phaser.AUTO,
@@ -1262,7 +1276,6 @@ const config = {
     backgroundColor: '#1a0800',
     physics: { default: 'arcade', arcade: { debug: false } },
     fps: { target: 60, forceSetTimeOut: true },
-    // AQUI ESTÃO TODAS AS SUAS CENAS BLINDADAS:
     scene: [MenuScene, InventoryScene, TutorialScene, OptionsScene, GameScene, PauseScene]
 };
 
