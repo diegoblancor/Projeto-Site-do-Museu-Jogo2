@@ -1,7 +1,5 @@
 // =============================================================================
 // 1. VARIÁVEIS GLOBAIS E CONFIGURAÇÕES
-// Aqui eu defino as configurações fixas (const) e as variáveis que mudam 
-// durante a gameplay (let), como a pontuação e os objetos da garra.
 // =============================================================================
 let volumeGlobal = 1.0;   
 
@@ -36,8 +34,6 @@ let posicoesOcupadas = [];
 
 // =============================================================================
 // 2. SISTEMA DE MEMORY CARD (LOCALSTORAGE)
-// Funções que criei para salvar, carregar e resetar o progresso do jogador 
-// direto no navegador, garantindo que ele não perca as relíquias.
 // =============================================================================
 function salvarJogo() {
     let save = { cenario: cenarioAtual, fase: faseNoCenario, fragmentos: fragmentosAtuais, reliquias: reliquiasCompletas };
@@ -60,30 +56,33 @@ function limparSave() {
 }
 
 // =============================================================================
-// 3. TELA INICIAL (MENU PRINCIPAL) - ATUALIZADA COM A NOVA CAPA!
+// 3. TELA INICIAL (MENU PRINCIPAL)
 // =============================================================================
 class MenuScene extends Phaser.Scene {
     constructor() {
         super({ key: 'MenuScene' });
     }
 
-    // Carrega a imagem antes da cena iniciar
     preload() {
         this.load.image('fundo_capa', 'img/capa.png');
     }
 
     create() {
-        const W = 1024, H = 768;
+        // Captura a largura e altura dinâmica gerada no Boot do Phaser
+        const W = this.cameras.main.width;
+        const H = this.cameras.main.height;
 
         let savedVol = localStorage.getItem('museuVolume');
         volumeGlobal = savedVol !== null ? parseFloat(savedVol) : 1.0;
 
-        // Renderiza a nova arte de fundo no centro da tela
         let fundo = this.add.image(W / 2, H / 2, 'fundo_capa');
-        fundo.displayWidth = W;
-        fundo.displayHeight = H;
+        
+        // Escala inteligente: cobre a tela inteira mantendo o Aspect Ratio da imagem original
+        let scaleX = W / fundo.width;
+        let scaleY = H / fundo.height;
+        fundo.setScale(Math.max(scaleX, scaleY));
 
-        // ---------- BOTÕES SEPARADOS E REPOSICIONADOS ----------
+        // Botões Ancorados no Meio da Tela (W / 2)
         this._criarBotao(W / 2, 310, 'NOVO JOGO', true, () => {
             limparSave();
             cenarioAtual = 1; faseNoCenario = 1; fragmentosAtuais = 0; reliquiasCompletas = 0;
@@ -109,7 +108,6 @@ class MenuScene extends Phaser.Scene {
             this.scene.start('OptionsScene');
         });
 
-        // Créditos
         this.add.text(W / 2, 735, 'Projeto de Extensão — Análise e Desenvolvimento de Sistemas', {
             fontFamily: 'Arial', fontSize: '15px', color: '#dddddd'
         }).setOrigin(0.5);
@@ -159,14 +157,11 @@ class MenuScene extends Phaser.Scene {
         zona.on('pointerdown',  callback);
     }
 
-    // A função update da cena de Menu agora fica vazia, a arte de fundo já faz o espetáculo!
     update() {}
 }
 
 // =============================================================================
 // 4. SALA DE EXPOSIÇÃO (INVENTÁRIO)
-// Aqui eu carrego as relíquias salvas e renderizo os fragmentos que o jogador 
-// já desbloqueou. O que não foi pego ainda, fica marcado como silhueta.
 // =============================================================================
 class InventoryScene extends Phaser.Scene {
     constructor() {
@@ -174,7 +169,7 @@ class InventoryScene extends Phaser.Scene {
     }
 
     create() {
-        const W = 1024, H = 768;
+        const W = this.cameras.main.width, H = this.cameras.main.height;
 
         this.add.rectangle(0, 0, W, H / 2, 0x1a0800).setOrigin(0, 0);
         this.add.rectangle(0, H / 2, W, H / 2, 0x3e2000).setOrigin(0, 0);
@@ -296,7 +291,6 @@ class InventoryScene extends Phaser.Scene {
 
 // =============================================================================
 // 5. TELA DE TUTORIAL
-// Tela explicativa para o jogador entender a dinâmica do pêndulo e do boost.
 // =============================================================================
 class TutorialScene extends Phaser.Scene {
     constructor() {
@@ -304,7 +298,7 @@ class TutorialScene extends Phaser.Scene {
     }
 
     create() {
-        const W = 1024, H = 768;
+        const W = this.cameras.main.width, H = this.cameras.main.height;
 
         this.add.rectangle(0, 0, W, H / 2, 0x1a0800).setOrigin(0, 0);
         this.add.rectangle(0, H / 2, W, H / 2, 0x3e2000).setOrigin(0, 0);
@@ -380,8 +374,6 @@ class TutorialScene extends Phaser.Scene {
 
 // =============================================================================
 // 6. CLASSE UTILITÁRIA: SLIDER DE VOLUME
-// Criei esse componente para não precisar reescrever a barrinha de áudio 
-// na tela de Opções e na tela de Pause.
 // =============================================================================
 class SliderVolume {
     constructor(scene, cx, sy, sw, muteY, onVolumeChange) {
@@ -469,7 +461,6 @@ class SliderVolume {
 
 // =============================================================================
 // 7. OPÇÕES E PAUSE
-// Telas construídas para alterar parâmetros globais sem atrapalhar a gameplay.
 // =============================================================================
 class OptionsScene extends Phaser.Scene {
     constructor() {
@@ -477,7 +468,7 @@ class OptionsScene extends Phaser.Scene {
     }
 
     create() {
-        const W = 1024, H = 768;
+        const W = this.cameras.main.width, H = this.cameras.main.height;
 
         this.add.rectangle(0, 0, W, H / 2, 0x1a0800).setOrigin(0, 0);
         this.add.rectangle(0, H / 2, W, H / 2, 0x3e2000).setOrigin(0, 0);
@@ -550,15 +541,15 @@ class PauseScene extends Phaser.Scene {
     }
 
     create() {
-        const W = 1024, H = 768;
+        const W = this.cameras.main.width, H = this.cameras.main.height;
 
         this.add.rectangle(0, 0, W, H, 0x000000, 0.65).setOrigin(0, 0);
 
         let painel = this.add.graphics();
         painel.fillStyle(0x120f09, 0.95);
-        painel.fillRoundedRect(162, 128, 700, 512, 18);
+        painel.fillRoundedRect(W / 2 - 350, 128, 700, 512, 18);
         painel.lineStyle(3, 0xd4af37, 1);
-        painel.strokeRoundedRect(162, 128, 700, 512, 18);
+        painel.strokeRoundedRect(W / 2 - 350, 128, 700, 512, 18);
 
         this.add.text(W / 2, 190, 'PAUSADO', {
             fontFamily: 'Arial', fontSize: '58px', fontStyle: 'bold', color: '#d4af37', stroke: '#5c3a00', strokeThickness: 6
@@ -620,8 +611,6 @@ class PauseScene extends Phaser.Scene {
 
 // =============================================================================
 // 8. O JOGO PRINCIPAL E A LÓGICA CORE
-// É aqui que a mágica acontece! A classe chama as lógicas do motor de física,
-// gera o cenário, calcula a velocidade do pêndulo e os itens na tela.
 // =============================================================================
 class GameScene extends Phaser.Scene {
     constructor() {
@@ -658,9 +647,14 @@ function preload() {}
 
 function create() {
     carregarJogo();
+    
+    // Puxa largura e altura dinâmicas da tela
+    const W = this.cameras.main.width;
+    const H = this.cameras.main.height;
 
     textoHUD = this.add.text(10, 10, '', { font: '22px Arial', fill: '#fff', fontStyle: 'bold' });
-    textoCentro = this.add.text(512, 384, '', { font: '45px Arial', fill: '#00ff00', fontStyle: 'bold', align: 'center' }).setOrigin(0.5);
+    // Centraliza o texto de vitória/derrota na metade da tela real
+    textoCentro = this.add.text(W / 2, H / 2, '', { font: '45px Arial', fill: '#00ff00', fontStyle: 'bold', align: 'center' }).setOrigin(0.5);
 
     this.add.text(10, 60, '⚡ ENERGIA', {
         font: '13px Arial', fill: '#ffdd55', fontStyle: 'bold'
@@ -672,7 +666,8 @@ function create() {
         stroke: '#000000', strokeThickness: 3
     }).setVisible(false);
 
-    const cx = 920, cy = 108;
+    // O relógio e energia agora grudam no canto DIREITO (W - margem)
+    const cx = W - 104, cy = 108;
 
     let clockShadow = this.add.graphics();
     clockShadow.fillStyle(0x000000, 0.5);
@@ -721,7 +716,8 @@ function create() {
     grupoObjetos = this.physics.add.group();
     linhaCorda = this.add.graphics();
 
-    gancho = this.add.rectangle(512, 100, 25, 20, 0xffffff);
+    // A garra agora nasce no MEIO EXATO da largura dinâmica
+    gancho = this.add.rectangle(W / 2, 100, 25, 20, 0xffffff);
     this.physics.add.existing(gancho);
 
     this.physics.add.overlap(gancho, grupoObjetos, pegarObjeto, null, this);
@@ -730,7 +726,8 @@ function create() {
     this.teclaEsc = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
     this.teclaM = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
 
-    this._criarBotaoPausa(994, 26);
+    // Botão de pausa fica ancorado perto do limite direito (W - 30)
+    this._criarBotaoPausa(W - 30, 26);
 
     this.time.addEvent({ delay: 1000, callback: diminuirTempo, callbackScope: this, loop: true });
 
@@ -741,10 +738,11 @@ function atualizarHUD() {
     textoHUD.setText(`Cenário: ${cenarioAtual} - Fase: ${faseNoCenario} | Pontos: ${moedasColetadas}/${metaMoedas}\nFragmentos: ${fragmentosAtuais}/3 | Inventário: ${reliquiasCompletas}/3`);
 }
 
-function acharPosicaoValida(raioNovoItem) {
+// Passamos a largura da tela (W) para os itens não nascerem fora do cenário 16:9
+function acharPosicaoValida(raioNovoItem, larguraTela) {
     let maxTentativas = 100;
     for(let t = 0; t < maxTentativas; t++) {
-        let x = Phaser.Math.Between(50, 974);
+        let x = Phaser.Math.Between(50, larguraTela - 50);
         let y = Phaser.Math.Between(250, 700);
         let sobreposto = false;
 
@@ -760,7 +758,7 @@ function acharPosicaoValida(raioNovoItem) {
             return {x: x, y: y};
         }
     }
-    return {x: Phaser.Math.Between(100, 900), y: Phaser.Math.Between(300, 700)};
+    return {x: Phaser.Math.Between(100, larguraTela - 100), y: Phaser.Math.Between(300, 700)};
 }
 
 function montarFase() {
@@ -789,10 +787,11 @@ function montarFase() {
         { m5: 4, m3: 8, m1: 10, pGrande: 5, pPequena: 6 },  
     ];
     const cfg = cfgCenario[Phaser.Math.Clamp(cenarioAtual - 1, 0, 2)];
+    const W = this.cameras.main.width;
 
     for (let i = 0; i < cfg.m5; i++) {
         let r = 10;
-        let pos = acharPosicaoValida(r);
+        let pos = acharPosicaoValida(r, W);
         let gfx = this.add.graphics({ x: pos.x, y: pos.y });
         gfx.fillStyle(0xffffff, 1);
         gfx.fillPoints([{x:0,y:-r},{x:r,y:0},{x:0,y:r},{x:-r,y:0}], true);
@@ -806,7 +805,7 @@ function montarFase() {
 
     for (let i = 0; i < cfg.m3; i++) {
         let r = 25;
-        let pos = acharPosicaoValida(r);
+        let pos = acharPosicaoValida(r, W);
         let gfx = this.add.graphics({ x: pos.x, y: pos.y });
         let pts = [];
         for (let k = 0; k < 6; k++) {
@@ -833,7 +832,7 @@ function montarFase() {
 
     for (let i = 0; i < cfg.m1; i++) {
         let r = 15;
-        let pos = acharPosicaoValida(r);
+        let pos = acharPosicaoValida(r, W);
         let container = this.add.container(pos.x, pos.y);
         let gfx = this.add.graphics();
         gfx.fillStyle(0xffaa00, 1);
@@ -850,7 +849,7 @@ function montarFase() {
 
     for (let i = 0; i < cfg.pGrande; i++) {
         let r = 45;
-        let pos = acharPosicaoValida(r);
+        let pos = acharPosicaoValida(r, W);
         let gfx = this.add.graphics({ x: pos.x, y: pos.y });
         gfx.fillStyle(0x444444, 1);
         gfx.fillCircle(0, 0, r);
@@ -866,7 +865,7 @@ function montarFase() {
 
     for (let i = 0; i < cfg.pPequena; i++) {
         let r = 20;
-        let pos = acharPosicaoValida(r);
+        let pos = acharPosicaoValida(r, W);
         let gfx = this.add.graphics({ x: pos.x, y: pos.y });
         let triPts = [
             { x: 0,  y: -r },
@@ -899,7 +898,7 @@ function spawnarFragmento() {
     });
 
     let r = 16;
-    let pos = acharPosicaoValida(r);
+    let pos = acharPosicaoValida(r, this.cameras.main.width);
     let container = this.add.container(pos.x, pos.y);
     let gfx = this.add.graphics();
 
@@ -950,7 +949,7 @@ function diminuirTempo() {
 function mostrarControlesGameOver() {
     if (this.gameOverDrawn) return;
 
-    const W = 1024;
+    const W = this.cameras.main.width;
     this.add.rectangle(W / 2, 530, 680, 90, 0x000000, 0.55).setOrigin(0.5);
     this.add.text(W / 2, 500, 'Pressione ESPAÇO ou clique para reiniciar. Pressione M para retornar ao menu.', {
         fontFamily: 'Arial', fontSize: '24px', color: '#ffffff', align: 'center'
@@ -1006,10 +1005,13 @@ function update() {
         return;
     }
 
+    const W = this.cameras.main.width;
+    const centroX = W / 2;
+
     linhaCorda.clear();
     linhaCorda.lineStyle(3, 0xaaaaaa, 1);
     linhaCorda.beginPath();
-    linhaCorda.moveTo(512, 50);
+    linhaCorda.moveTo(centroX, 50);
     linhaCorda.lineTo(gancho.x, gancho.y);
     linhaCorda.strokePath();
 
@@ -1083,14 +1085,14 @@ function update() {
 
         let tamanhoDaCorda = 135;
 
-        gancho.x = 512 + Math.sin(radianos) * tamanhoDaCorda;
+        gancho.x = centroX + Math.sin(radianos) * tamanhoDaCorda;
         gancho.y = 50  + Math.cos(radianos) * tamanhoDaCorda;
         gancho.angle = -anguloGancho;
     }
     else if (estadoGancho === 'DESCENDO') {
         gancho.x += Math.sin(radianos) * velocidadeTiroPadrao;
         gancho.y += Math.cos(radianos) * velocidadeTiroPadrao;
-        if (gancho.x < 0 || gancho.x > 1024 || gancho.y > 768) estadoGancho = 'SUBINDO';
+        if (gancho.x < 0 || gancho.x > W || gancho.y > 768) estadoGancho = 'SUBINDO';
     }
     else if (estadoGancho === 'SUBINDO') {
         let velocidadeAtual = objetoPuxado ? velocidadeTiroPadrao / objetoPuxado.peso : velocidadeTiroPadrao * 1.5;
@@ -1213,15 +1215,26 @@ function pegarObjeto(ganchoObjeto, objetoAtingido) {
 }
 
 // =============================================================================
-// 9. CONFIGURAÇÃO FINAL DO PHASER
-// É aqui que eu junto todas as cenas criadas e inicio a Engine do jogo.
+// 9. CONFIGURAÇÃO FINAL DO PHASER (LÓGICA RESPONSIVA!)
 // =============================================================================
+
+// Calcula a proporção atual do dispositivo do jogador
+let aspect = window.innerWidth / window.innerHeight;
+
+// Fixamos a altura do jogo em 768. 
+// A largura vai se adaptar à tela (se for 16:9, vai dar mais ou menos 1366).
+let widthCalculado = Math.round(768 * aspect);
+
+// Travamos o limite para o jogo nunca ficar menor que o 4:3 clássico (1024)
+// nem mais largo que um 16:9 esticado (1366) para não quebrar a física das pedras.
+let GAME_WIDTH = Phaser.Math.Clamp(widthCalculado, 1024, 1366);
+
 const config = {
     type: Phaser.AUTO,
     scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH,
-        width: 1024,
+        width: GAME_WIDTH,
         height: 768
     },
     parent: 'game-container',
