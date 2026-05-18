@@ -65,7 +65,7 @@ class MenuScene extends Phaser.Scene {
 
     preload() {
         // Assets da tela de menu
-        this.load.image('fundo_capa', 'img/capa_museu.jpg');
+        this.load.image('fundo_capa', 'img/capa.png');
         this.load.image('ui_botao', 'img/placeholder_botao.png'); // Substitua pelo seu sprite de botão
     }
 
@@ -80,14 +80,6 @@ class MenuScene extends Phaser.Scene {
         let scaleX = W / fundo.width;
         let scaleY = H / fundo.height;
         fundo.setScale(Math.max(scaleX, scaleY));
-
-        this.add.rectangle(0, 0, W, H, 0x000000, 0.4).setOrigin(0, 0);
-
-        let moldura = this.add.graphics();
-        moldura.lineStyle(3, 0xd4af37, 0.5);
-        moldura.strokeRect(28, 28, W - 56, H - 56);
-        moldura.lineStyle(1, 0xd4af37, 0.2);
-        moldura.strokeRect(38, 38, W - 76, H - 76);
 
         this._criarBotaoSprite(W / 2, 310, 'NOVO JOGO', true, () => {
             limparSave();
