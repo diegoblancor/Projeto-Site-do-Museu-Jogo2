@@ -60,13 +60,16 @@ function limparSave() {
 }
 
 // =============================================================================
-// 3. TELA INICIAL (MENU PRINCIPAL)
-// Essa cena monta a interface de entrada com fundo animado e os botões que 
-// redirecionam o jogador para o jogo, inventário, tutorial e opções.
+// 3. TELA INICIAL (MENU PRINCIPAL) - ATUALIZADA COM A NOVA CAPA!
 // =============================================================================
 class MenuScene extends Phaser.Scene {
     constructor() {
         super({ key: 'MenuScene' });
+    }
+
+    // Carrega a imagem antes da cena iniciar
+    preload() {
+        this.load.image('fundo_capa', 'img/capa.png');
     }
 
     create() {
@@ -75,45 +78,13 @@ class MenuScene extends Phaser.Scene {
         let savedVol = localStorage.getItem('museuVolume');
         volumeGlobal = savedVol !== null ? parseFloat(savedVol) : 1.0;
 
-        this.add.rectangle(0, 0, W, H / 2, 0x1a0800).setOrigin(0, 0);
-        this.add.rectangle(0, H / 2, W, H / 2, 0x3e2000).setOrigin(0, 0);
+        // Renderiza a nova arte de fundo no centro da tela
+        let fundo = this.add.image(W / 2, H / 2, 'fundo_capa');
+        fundo.displayWidth = W;
+        fundo.displayHeight = H;
 
-        let moldura = this.add.graphics();
-        moldura.lineStyle(3, 0xd4af37, 0.5);
-        moldura.strokeRect(28, 28, W - 56, H - 56);
-        moldura.lineStyle(1, 0xd4af37, 0.2);
-        moldura.strokeRect(38, 38, W - 76, H - 76);
-
-        this.moedas = [];
-        for (let i = 0; i < 18; i++) {
-            let c = this.add.circle(
-                Phaser.Math.Between(50, W - 50),
-                Phaser.Math.Between(0, H),
-                Phaser.Math.Between(5, 18),
-                Phaser.Math.RND.pick([0xd4af37, 0xffaa00, 0xffffff]),
-                Phaser.Math.FloatBetween(0.05, 0.2)
-            );
-            c.velY = Phaser.Math.FloatBetween(0.3, 1.0);
-            this.moedas.push(c);
-        }
-
-        this.pendGfx = this.add.graphics();
-        this.pendAngle = 0;
-        this.pendDir = 1;
-
-        this.add.text(W / 2, 100, 'MUSEU DO OURO', {
-            fontFamily: 'Arial', fontSize: '62px', fontStyle: 'bold', color: '#d4af37', stroke: '#5c3a00', strokeThickness: 7
-        }).setOrigin(0.5);
-
-        this.add.text(W / 2, 160, 'Gold Miner — Protótipo', {
-            fontFamily: 'Arial', fontSize: '22px', color: '#bf8b6e'
-        }).setOrigin(0.5);
-
-        let div = this.add.graphics();
-        div.lineStyle(2, 0xd4af37, 0.4);
-        div.lineBetween(W / 2 - 220, 190, W / 2 + 220, 190);
-
-        this._criarBotao(W / 2, 260, 'NOVO JOGO', true, () => {
+        // ---------- BOTÕES SEPARADOS E REPOSICIONADOS ----------
+        this._criarBotao(W / 2, 310, 'NOVO JOGO', true, () => {
             limparSave();
             cenarioAtual = 1; faseNoCenario = 1; fragmentosAtuais = 0; reliquiasCompletas = 0;
             jogoAcabou = false; esperandoProximaFase = false;
@@ -121,30 +92,31 @@ class MenuScene extends Phaser.Scene {
         });
 
         let temSave = localStorage.getItem('museuSave') !== null;
-        this._criarBotao(W / 2, 340, 'CONTINUAR', temSave, temSave ? () => {
+        this._criarBotao(W / 2, 390, 'CONTINUAR', temSave, temSave ? () => {
             jogoAcabou = false; esperandoProximaFase = false;
             this.scene.start('GameScene');
         } : null);
 
-        this._criarBotao(W / 2, 420, 'INVENTÁRIO', true, () => {
+        this._criarBotao(W / 2, 470, 'INVENTÁRIO', true, () => {
             this.scene.start('InventoryScene');
         });
 
-        this._criarBotao(W / 2, 500, 'TUTORIAL', true, () => {
+        this._criarBotao(W / 2, 550, 'TUTORIAL', true, () => {
             this.scene.start('TutorialScene');
         });
 
-        this._criarBotao(W / 2, 580, 'OPÇÕES', true, () => {
+        this._criarBotao(W / 2, 630, 'OPÇÕES', true, () => {
             this.scene.start('OptionsScene');
         });
 
-        this.add.text(W / 2, 728, 'Projeto de Extensão — Análise e Desenvolvimento de Sistemas', {
-            fontFamily: 'Arial', fontSize: '15px', color: '#664422'
+        // Créditos
+        this.add.text(W / 2, 735, 'Projeto de Extensão — Análise e Desenvolvimento de Sistemas', {
+            fontFamily: 'Arial', fontSize: '15px', color: '#dddddd'
         }).setOrigin(0.5);
 
         if (!temSave) {
-            this.add.text(W / 2, 380, 'Nenhum save encontrado', {
-                fontFamily: 'Arial', fontSize: '13px', color: '#554433'
+            this.add.text(W / 2, 430, 'Nenhum save encontrado', {
+                fontFamily: 'Arial', fontSize: '13px', color: '#aaaaaa'
             }).setOrigin(0.5);
         }
     }
@@ -162,12 +134,12 @@ class MenuScene extends Phaser.Scene {
                 return;
             }
             if (hover) {
-                bg.fillStyle(0xd4af37, 0.18);
+                bg.fillStyle(0xd4af37, 0.25);
                 bg.fillRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
                 bg.lineStyle(3, 0xd4af37, 1);
                 bg.strokeRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
             } else {
-                bg.fillStyle(0x000000, 0.55);
+                bg.fillStyle(0x000000, 0.65);
                 bg.fillRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
                 bg.lineStyle(2, 0x8b6914, 1);
                 bg.strokeRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
@@ -176,7 +148,7 @@ class MenuScene extends Phaser.Scene {
         _desenharBg(false);
 
         let txt = this.add.text(x, y, label, {
-            fontFamily: 'Arial', fontSize: '26px', fontStyle: 'bold', color: ativo ? '#d4af37' : '#443322'
+            fontFamily: 'Arial', fontSize: '26px', fontStyle: 'bold', color: ativo ? '#d4af37' : '#555555'
         }).setOrigin(0.5);
 
         if (!callback) return;
@@ -187,28 +159,8 @@ class MenuScene extends Phaser.Scene {
         zona.on('pointerdown',  callback);
     }
 
-    update() {
-        this.pendAngle += 0.7 * this.pendDir;
-        if (this.pendAngle >  50) this.pendDir = -1;
-        if (this.pendAngle < -50) this.pendDir =  1;
-
-        this.pendGfx.clear();
-        this.pendGfx.lineStyle(3, 0xd4af37, 0.4);
-        let rad = Phaser.Math.DegToRad(this.pendAngle);
-        let cx = 512, cy = 48;
-        let px = cx + Math.sin(rad) * 130;
-        let py = cy + Math.cos(rad) * 130;
-        this.pendGfx.lineBetween(cx, cy, px, py);
-        this.pendGfx.fillStyle(0xd4af37, 0.5);
-        this.pendGfx.fillCircle(px, py, 14);
-        this.pendGfx.fillStyle(0x8b6914, 0.6);
-        this.pendGfx.fillCircle(cx, cy, 6);
-
-        for (let c of this.moedas) {
-            c.y += c.velY;
-            if (c.y > 800) c.y = -20;
-        }
-    }
+    // A função update da cena de Menu agora fica vazia, a arte de fundo já faz o espetáculo!
+    update() {}
 }
 
 // =============================================================================
