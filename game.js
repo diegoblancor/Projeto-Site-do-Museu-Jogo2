@@ -64,11 +64,12 @@ class MenuScene extends Phaser.Scene {
     }
 
     preload() {
-        this.load.image('fundo_capa', 'img/capa.png');
+        // Assets da tela de menu
+        this.load.image('fundo_capa', 'img/capa_museu.jpg');
+        this.load.image('ui_botao', 'img/placeholder_botao.png'); // Substitua pelo seu sprite de botão
     }
 
     create() {
-        // Captura a largura e altura dinâmica gerada no Boot do Phaser
         const W = this.cameras.main.width;
         const H = this.cameras.main.height;
 
@@ -76,14 +77,19 @@ class MenuScene extends Phaser.Scene {
         volumeGlobal = savedVol !== null ? parseFloat(savedVol) : 1.0;
 
         let fundo = this.add.image(W / 2, H / 2, 'fundo_capa');
-        
-        // Escala inteligente: cobre a tela inteira mantendo o Aspect Ratio da imagem original
         let scaleX = W / fundo.width;
         let scaleY = H / fundo.height;
         fundo.setScale(Math.max(scaleX, scaleY));
 
-        // Botões Ancorados no Meio da Tela (W / 2)
-        this._criarBotao(W / 2, 310, 'NOVO JOGO', true, () => {
+        this.add.rectangle(0, 0, W, H, 0x000000, 0.4).setOrigin(0, 0);
+
+        let moldura = this.add.graphics();
+        moldura.lineStyle(3, 0xd4af37, 0.5);
+        moldura.strokeRect(28, 28, W - 56, H - 56);
+        moldura.lineStyle(1, 0xd4af37, 0.2);
+        moldura.strokeRect(38, 38, W - 76, H - 76);
+
+        this._criarBotaoSprite(W / 2, 310, 'NOVO JOGO', true, () => {
             limparSave();
             cenarioAtual = 1; faseNoCenario = 1; fragmentosAtuais = 0; reliquiasCompletas = 0;
             jogoAcabou = false; esperandoProximaFase = false;
@@ -91,20 +97,20 @@ class MenuScene extends Phaser.Scene {
         });
 
         let temSave = localStorage.getItem('museuSave') !== null;
-        this._criarBotao(W / 2, 390, 'CONTINUAR', temSave, temSave ? () => {
+        this._criarBotaoSprite(W / 2, 390, 'CONTINUAR', temSave, temSave ? () => {
             jogoAcabou = false; esperandoProximaFase = false;
             this.scene.start('GameScene');
         } : null);
 
-        this._criarBotao(W / 2, 470, 'INVENTÁRIO', true, () => {
+        this._criarBotaoSprite(W / 2, 470, 'INVENTÁRIO', true, () => {
             this.scene.start('InventoryScene');
         });
 
-        this._criarBotao(W / 2, 550, 'TUTORIAL', true, () => {
+        this._criarBotaoSprite(W / 2, 550, 'TUTORIAL', true, () => {
             this.scene.start('TutorialScene');
         });
 
-        this._criarBotao(W / 2, 630, 'OPÇÕES', true, () => {
+        this._criarBotaoSprite(W / 2, 630, 'OPÇÕES', true, () => {
             this.scene.start('OptionsScene');
         });
 
@@ -119,53 +125,39 @@ class MenuScene extends Phaser.Scene {
         }
     }
 
-    _criarBotao(x, y, label, ativo, callback) {
-        const LG = 320, AL = 60, R = 12;
-        let bg = this.add.graphics();
-        const _desenharBg = (hover) => {
-            bg.clear();
-            if (!ativo) {
-                bg.fillStyle(0x111111, 0.6);
-                bg.fillRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
-                bg.lineStyle(2, 0x3a2a1a, 1);
-                bg.strokeRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
-                return;
-            }
-            if (hover) {
-                bg.fillStyle(0xd4af37, 0.25);
-                bg.fillRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
-                bg.lineStyle(3, 0xd4af37, 1);
-                bg.strokeRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
-            } else {
-                bg.fillStyle(0x000000, 0.65);
-                bg.fillRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
-                bg.lineStyle(2, 0x8b6914, 1);
-                bg.strokeRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
-            }
-        };
-        _desenharBg(false);
+    _criarBotaoSprite(x, y, label, ativo, callback) {
+        // Usa o sprite do botão ao invés de desenhar um retângulo
+        let btn = this.add.sprite(x, y, 'ui_botao').setInteractive({ useHandCursor: ativo });
+        
+        // Simulação de tamanhos para o placeholder não ficar deformado na falta da imagem real (pode remover depois)
+        btn.setDisplaySize(320, 60); 
+
+        if (!ativo) {
+            btn.setTint(0x555555);
+        }
 
         let txt = this.add.text(x, y, label, {
-            fontFamily: 'Arial', fontSize: '26px', fontStyle: 'bold', color: ativo ? '#d4af37' : '#555555'
+            fontFamily: 'Arial', fontSize: '26px', fontStyle: 'bold', color: ativo ? '#d4af37' : '#999999'
         }).setOrigin(0.5);
 
         if (!callback) return;
 
-        let zona = this.add.zone(x, y, LG, AL).setInteractive({ useHandCursor: true });
-        zona.on('pointerover',  () => { _desenharBg(true);  txt.setScale(1.06); });
-        zona.on('pointerout',   () => { _desenharBg(false); txt.setScale(1.0);  });
-        zona.on('pointerdown',  callback);
+        btn.on('pointerover',  () => { btn.setTint(0xffd700); txt.setScale(1.06); });
+        btn.on('pointerout',   () => { btn.clearTint(); txt.setScale(1.0);  });
+        btn.on('pointerdown',  callback);
     }
-
-    update() {}
 }
 
 // =============================================================================
 // 4. SALA DE EXPOSIÇÃO (INVENTÁRIO)
 // =============================================================================
 class InventoryScene extends Phaser.Scene {
-    constructor() {
-        super({ key: 'InventoryScene' });
+    constructor() { super({ key: 'InventoryScene' }); }
+
+    preload() {
+        this.load.image('ui_botao', 'img/placeholder_botao.png');
+        this.load.image('ui_slot_reliquia', 'img/placeholder_slot.png');
+        this.load.image('spr_fragmento_inv', 'img/placeholder_frag_inv.png');
     }
 
     create() {
@@ -182,12 +174,7 @@ class InventoryScene extends Phaser.Scene {
             fontFamily: 'Arial', fontSize: '50px', fontStyle: 'bold', color: '#d4af37', stroke: '#5c3a00', strokeThickness: 6
         }).setOrigin(0.5);
         
-        this.add.text(W / 2, 150, 'Acompanhe a restauração das peças', {
-            fontFamily: 'Arial', fontSize: '22px', color: '#bf8b6e'
-        }).setOrigin(0.5);
-
-        let reliquiasSalvas = 0;
-        let fragmentosSalvos = 0;
+        let reliquiasSalvas = 0, fragmentosSalvos = 0;
         let saveText = localStorage.getItem('museuSave');
         if (saveText) {
             let data = JSON.parse(saveText);
@@ -195,7 +182,6 @@ class InventoryScene extends Phaser.Scene {
             fragmentosSalvos = data.fragmentos || 0;
         }
 
-        const coresReliquias = [0x8b4513, 0x1e90ff, 0x800080];
         const nomesReliquias = ["Artefato da Terra", "Cálice das Águas", "Coroa das Ruínas"];
         const espacamento = 250;
         const startX = W / 2 - espacamento;
@@ -204,24 +190,16 @@ class InventoryScene extends Phaser.Scene {
             let px = startX + (i * espacamento);
             let py = 350;
 
-            let bgSlot = this.add.graphics();
-            bgSlot.fillStyle(0x000000, 0.6);
-            bgSlot.fillRoundedRect(px - 100, py - 120, 200, 240, 16);
-            bgSlot.lineStyle(2, 0xd4af37, 0.8);
-            bgSlot.strokeRoundedRect(px - 100, py - 120, 200, 240, 16);
+            // Slot de fundo com Sprite
+            let slotImg = this.add.sprite(px, py, 'ui_slot_reliquia');
+            slotImg.setDisplaySize(200, 240);
 
-            let fragsDestaReliquia = 0;
-            if (reliquiasSalvas > i) {
-                fragsDestaReliquia = 3; 
-            } else if (reliquiasSalvas === i) {
-                fragsDestaReliquia = fragmentosSalvos; 
-            } else {
-                fragsDestaReliquia = 0; 
-            }
+            let fragsDestaReliquia = (reliquiasSalvas > i) ? 3 : ((reliquiasSalvas === i) ? fragmentosSalvos : 0);
 
-            this._desenharFragmento(px, py + 30, 80, 30, coresReliquias[i], fragsDestaReliquia >= 1);
-            this._desenharFragmento(px, py - 5, 60, 40, coresReliquias[i], fragsDestaReliquia >= 2);
-            this._desenharFragmento(px, py - 45, 50, 40, coresReliquias[i], fragsDestaReliquia >= 3);
+            // Fragmentos como Sprites
+            this._renderizarFragmento(px, py + 30, fragsDestaReliquia >= 1);
+            this._renderizarFragmento(px, py - 5, fragsDestaReliquia >= 2);
+            this._renderizarFragmento(px, py - 45, fragsDestaReliquia >= 3);
 
             if (fragsDestaReliquia === 3) {
                 this.add.text(px, py + 85, nomesReliquias[i], {
@@ -232,60 +210,27 @@ class InventoryScene extends Phaser.Scene {
                     fontFamily: 'Arial', fontSize: '16px', fontStyle: 'bold', color: '#ffd700', align: 'center'
                 }).setOrigin(0.5);
             } else {
-                this.add.text(px, py - 10, '?', {
-                    fontFamily: 'Arial', fontSize: '60px', fontStyle: 'bold', color: '#443322'
-                }).setOrigin(0.5);
-                this.add.text(px, py + 85, 'Bloqueado', {
-                    fontFamily: 'Arial', fontSize: '18px', fontStyle: 'bold', color: '#443322', align: 'center'
-                }).setOrigin(0.5);
+                this.add.text(px, py - 10, '?', { fontFamily: 'Arial', fontSize: '60px', fontStyle: 'bold', color: '#443322' }).setOrigin(0.5);
+                this.add.text(px, py + 85, 'Bloqueado', { fontFamily: 'Arial', fontSize: '18px', fontStyle: 'bold', color: '#443322', align: 'center' }).setOrigin(0.5);
             }
         }
 
         this._criarBotaoVoltar(W / 2, 650, () => { this.scene.start('MenuScene'); });
     }
 
-    _desenharFragmento(x, y, w, h, cor, temPeca) {
-        let gfx = this.add.graphics();
-        if (temPeca) {
-            gfx.fillStyle(cor, 1);
-            gfx.fillRoundedRect(x - w/2, y - h/2, w, h, 4);
-            gfx.lineStyle(2, 0xffffff, 0.6);
-            gfx.strokeRoundedRect(x - w/2, y - h/2, w, h, 4);
-        } else {
-            gfx.fillStyle(0x222222, 0.5);
-            gfx.fillRoundedRect(x - w/2, y - h/2, w, h, 4);
-            gfx.lineStyle(2, 0x444444, 0.5);
-            gfx.strokeRoundedRect(x - w/2, y - h/2, w, h, 4);
-        }
+    _renderizarFragmento(x, y, temPeca) {
+        let frag = this.add.sprite(x, y, 'spr_fragmento_inv');
+        frag.setDisplaySize(60, 30); // Placeholder size
+        if (!temPeca) frag.setTint(0x222222); // Escurece se não tiver a peça
     }
 
     _criarBotaoVoltar(x, y, callback) {
-        const LG = 280, AL = 62, R = 12;
-        let bg = this.add.graphics();
-        const _desenhar = (hover) => {
-            bg.clear();
-            if (hover) {
-                bg.fillStyle(0xd4af37, 0.18);
-                bg.fillRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
-                bg.lineStyle(3, 0xd4af37, 1);
-                bg.strokeRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
-            } else {
-                bg.fillStyle(0x000000, 0.5);
-                bg.fillRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
-                bg.lineStyle(2, 0x8b6914, 1);
-                bg.strokeRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
-            }
-        };
-        _desenhar(false);
-
-        let txt = this.add.text(x, y, '← VOLTAR AO MENU', {
-            fontFamily: 'Arial', fontSize: '24px', fontStyle: 'bold', color: '#d4af37'
-        }).setOrigin(0.5);
-
-        let zona = this.add.zone(x, y, LG, AL).setInteractive({ useHandCursor: true });
-        zona.on('pointerover',  () => { _desenhar(true);  txt.setScale(1.05); });
-        zona.on('pointerout',   () => { _desenhar(false); txt.setScale(1.0);  });
-        zona.on('pointerdown',  callback);
+        let btn = this.add.sprite(x, y, 'ui_botao').setInteractive({ useHandCursor: true });
+        btn.setDisplaySize(280, 62);
+        let txt = this.add.text(x, y, '← VOLTAR AO MENU', { fontFamily: 'Arial', fontSize: '24px', fontStyle: 'bold', color: '#d4af37' }).setOrigin(0.5);
+        btn.on('pointerover',  () => { btn.setTint(0xffd700); txt.setScale(1.05); });
+        btn.on('pointerout',   () => { btn.clearTint(); txt.setScale(1.0);  });
+        btn.on('pointerdown',  callback);
     }
 }
 
@@ -295,6 +240,10 @@ class InventoryScene extends Phaser.Scene {
 class TutorialScene extends Phaser.Scene {
     constructor() {
         super({ key: 'TutorialScene' });
+    }
+
+    preload() {
+        this.load.image('ui_botao', 'img/placeholder_botao.png');
     }
 
     create() {
@@ -343,32 +292,12 @@ class TutorialScene extends Phaser.Scene {
     }
 
     _criarBotaoVoltar(x, y, callback) {
-        const LG = 280, AL = 62, R = 12;
-        let bg = this.add.graphics();
-        const _desenhar = (hover) => {
-            bg.clear();
-            if (hover) {
-                bg.fillStyle(0xd4af37, 0.18);
-                bg.fillRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
-                bg.lineStyle(3, 0xd4af37, 1);
-                bg.strokeRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
-            } else {
-                bg.fillStyle(0x000000, 0.5);
-                bg.fillRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
-                bg.lineStyle(2, 0x8b6914, 1);
-                bg.strokeRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
-            }
-        };
-        _desenhar(false);
-
-        let txt = this.add.text(x, y, '← ENTENDIDO!', {
-            fontFamily: 'Arial', fontSize: '24px', fontStyle: 'bold', color: '#d4af37'
-        }).setOrigin(0.5);
-
-        let zona = this.add.zone(x, y, LG, AL).setInteractive({ useHandCursor: true });
-        zona.on('pointerover',  () => { _desenhar(true);  txt.setScale(1.05); });
-        zona.on('pointerout',   () => { _desenhar(false); txt.setScale(1.0);  });
-        zona.on('pointerdown',  callback);
+        let btn = this.add.sprite(x, y, 'ui_botao').setInteractive({ useHandCursor: true });
+        btn.setDisplaySize(280, 62);
+        let txt = this.add.text(x, y, '← ENTENDIDO!', { fontFamily: 'Arial', fontSize: '24px', fontStyle: 'bold', color: '#d4af37' }).setOrigin(0.5);
+        btn.on('pointerover',  () => { btn.setTint(0xffd700); txt.setScale(1.05); });
+        btn.on('pointerout',   () => { btn.clearTint(); txt.setScale(1.0);  });
+        btn.on('pointerdown',  callback);
     }
 }
 
@@ -467,6 +396,10 @@ class OptionsScene extends Phaser.Scene {
         super({ key: 'OptionsScene' });
     }
 
+    preload() {
+        this.load.image('ui_botao', 'img/placeholder_botao.png');
+    }
+
     create() {
         const W = this.cameras.main.width, H = this.cameras.main.height;
 
@@ -502,32 +435,12 @@ class OptionsScene extends Phaser.Scene {
     }
 
     _criarBotaoVoltar(x, y, callback) {
-        const LG = 280, AL = 62, R = 12;
-        let bg = this.add.graphics();
-        const _desenhar = (hover) => {
-            bg.clear();
-            if (hover) {
-                bg.fillStyle(0xd4af37, 0.18);
-                bg.fillRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
-                bg.lineStyle(3, 0xd4af37, 1);
-                bg.strokeRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
-            } else {
-                bg.fillStyle(0x000000, 0.5);
-                bg.fillRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
-                bg.lineStyle(2, 0x8b6914, 1);
-                bg.strokeRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
-            }
-        };
-        _desenhar(false);
-
-        let txt = this.add.text(x, y, '← VOLTAR AO MENU', {
-            fontFamily: 'Arial', fontSize: '24px', fontStyle: 'bold', color: '#d4af37'
-        }).setOrigin(0.5);
-
-        let zona = this.add.zone(x, y, LG, AL).setInteractive({ useHandCursor: true });
-        zona.on('pointerover',  () => { _desenhar(true);  txt.setScale(1.05); });
-        zona.on('pointerout',   () => { _desenhar(false); txt.setScale(1.0);  });
-        zona.on('pointerdown',  callback);
+        let btn = this.add.sprite(x, y, 'ui_botao').setInteractive({ useHandCursor: true });
+        btn.setDisplaySize(280, 62);
+        let txt = this.add.text(x, y, '← VOLTAR AO MENU', { fontFamily: 'Arial', fontSize: '24px', fontStyle: 'bold', color: '#d4af37' }).setOrigin(0.5);
+        btn.on('pointerover',  () => { btn.setTint(0xffd700); txt.setScale(1.05); });
+        btn.on('pointerout',   () => { btn.clearTint(); txt.setScale(1.0);  });
+        btn.on('pointerdown',  callback);
     }
 }
 
@@ -538,6 +451,10 @@ class PauseScene extends Phaser.Scene {
 
     init(data) {
         this.parentScene = data.parentScene || 'GameScene';
+    }
+
+    preload() {
+        this.load.image('ui_botao', 'img/placeholder_botao.png');
     }
 
     create() {
@@ -563,8 +480,8 @@ class PauseScene extends Phaser.Scene {
             this.scene.get(this.parentScene).sound.volume = vol;
         });
 
-        this._criarBotao(W / 2, 540, 'CONTINUAR', true, () => { this._retomarJogo(); });
-        this._criarBotao(W / 2, 620, 'MENU INICIAL', true, () => {
+        this._criarBotaoSprite(W / 2, 540, 'CONTINUAR', true, () => { this._retomarJogo(); });
+        this._criarBotaoSprite(W / 2, 620, 'MENU INICIAL', true, () => {
             this.scene.stop(this.parentScene);
             this.scene.stop();
             this.scene.start('MenuScene');
@@ -574,33 +491,23 @@ class PauseScene extends Phaser.Scene {
         this.input.keyboard.on('keydown-SPACE', () => { this._retomarJogo(); });
     }
 
-    _criarBotao(x, y, label, ativo, callback) {
-        const LG = 320, AL = 68, R = 12;
-        let bg = this.add.graphics();
-        const _desenharBg = (hover) => {
-            bg.clear();
-            if (hover) {
-                bg.fillStyle(0xd4af37, 0.18);
-                bg.fillRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
-                bg.lineStyle(3, 0xd4af37, 1);
-                bg.strokeRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
-            } else {
-                bg.fillStyle(0x000000, 0.5);
-                bg.fillRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
-                bg.lineStyle(2, 0x8b6914, 1);
-                bg.strokeRoundedRect(x - LG / 2, y - AL / 2, LG, AL, R);
-            }
-        };
-        _desenharBg(false);
+    _criarBotaoSprite(x, y, label, ativo, callback) {
+        let btn = this.add.sprite(x, y, 'ui_botao').setInteractive({ useHandCursor: ativo });
+        btn.setDisplaySize(320, 68);
+
+        if (!ativo) {
+            btn.setTint(0x555555);
+        }
 
         let txt = this.add.text(x, y, label, {
-            fontFamily: 'Arial', fontSize: '30px', fontStyle: 'bold', color: '#d4af37'
+            fontFamily: 'Arial', fontSize: '30px', fontStyle: 'bold', color: ativo ? '#d4af37' : '#999999'
         }).setOrigin(0.5);
 
-        let zona = this.add.zone(x, y, LG, AL).setInteractive({ useHandCursor: true });
-        zona.on('pointerover',  () => { _desenharBg(true);  txt.setScale(1.06); });
-        zona.on('pointerout',   () => { _desenharBg(false); txt.setScale(1.0);  });
-        zona.on('pointerdown',  callback);
+        if (!callback) return;
+
+        btn.on('pointerover',  () => { btn.setTint(0xffd700); txt.setScale(1.06); });
+        btn.on('pointerout',   () => { btn.clearTint(); txt.setScale(1.0);  });
+        btn.on('pointerdown',  callback);
     }
 
     _retomarJogo() {
@@ -613,10 +520,23 @@ class PauseScene extends Phaser.Scene {
 // 8. O JOGO PRINCIPAL E A LÓGICA CORE
 // =============================================================================
 class GameScene extends Phaser.Scene {
-    constructor() {
-        super({ key: 'GameScene' });
+    constructor() { super({ key: 'GameScene' }); }
+    
+    preload() { 
+        // ===================================================
+        // AQUI FICAM TODOS OS SEUS ASSETS IN-GAME!
+        // Substitua os caminhos pelos arquivos da sua pasta img/
+        // ===================================================
+        this.load.image('spr_gancho', 'img/placeholder_gancho.png');
+        this.load.image('spr_moeda_ouro', 'img/placeholder_moeda_ouro.png');     // m5
+        this.load.image('spr_moeda_prata', 'img/placeholder_moeda_prata.png');   // m3
+        this.load.image('spr_moeda_bronze', 'img/placeholder_moeda_bronze.png'); // m1
+        this.load.image('spr_pedra_grande', 'img/placeholder_pedra_grande.png'); // pGrande
+        this.load.image('spr_pedra_pequena', 'img/placeholder_pedra_pequena.png');// pPequena
+        this.load.image('spr_fragmento_fase', 'img/placeholder_fragmento.png');  // A relíquia que spawna
+        this.load.image('ui_btn_pausa', 'img/placeholder_btn_pausa.png');
     }
-    preload() { preload.call(this); }
+
     create()  { 
         this.sound.volume = volumeGlobal;
         create.call(this);  
@@ -625,16 +545,9 @@ class GameScene extends Phaser.Scene {
 }
 
 GameScene.prototype._criarBotaoPausa = function(x, y) {
-    const size = 62;
-    let bg = this.add.graphics();
-    bg.fillStyle(0x000000, 0.4);
-    bg.fillRoundedRect(x - size / 2, y - size / 2, size, size, 14);
-    bg.lineStyle(2, 0xd4af37, 1);
-    bg.strokeRoundedRect(x - size / 2, y - size / 2, size, size, 14);
-    this.add.text(x, y, '⏸', { fontFamily: 'Arial', fontSize: '30px', color: '#d4af37' }).setOrigin(0.5);
-
-    this.pauseZone = this.add.zone(x, y, size, size).setInteractive({ useHandCursor: true });
-    this.pauseZone.on('pointerdown', () => { this._abrirMenuPausa(); });
+    let btnPausa = this.add.sprite(x, y, 'ui_btn_pausa').setInteractive({ useHandCursor: true });
+    btnPausa.setDisplaySize(62, 62);
+    btnPausa.on('pointerdown', () => { this._abrirMenuPausa(); });
 };
 
 GameScene.prototype._abrirMenuPausa = function() {
@@ -643,82 +556,41 @@ GameScene.prototype._abrirMenuPausa = function() {
     this.scene.pause();
 };
 
-function preload() {}
-
 function create() {
     carregarJogo();
     
-    // Puxa largura e altura dinâmicas da tela
     const W = this.cameras.main.width;
     const H = this.cameras.main.height;
 
     textoHUD = this.add.text(10, 10, '', { font: '22px Arial', fill: '#fff', fontStyle: 'bold' });
-    // Centraliza o texto de vitória/derrota na metade da tela real
     textoCentro = this.add.text(W / 2, H / 2, '', { font: '45px Arial', fill: '#00ff00', fontStyle: 'bold', align: 'center' }).setOrigin(0.5);
 
-    this.add.text(10, 60, '⚡ ENERGIA', {
-        font: '13px Arial', fill: '#ffdd55', fontStyle: 'bold'
-    });
-    barraEstamina = this.add.graphics();
+    this.add.text(10, 60, '⚡ ENERGIA', { font: '13px Arial', fill: '#ffdd55', fontStyle: 'bold' });
+    barraEstamina = this.add.graphics(); // Mantido como Graphics (Barra Dinâmica)
 
-    labelBoost = this.add.text(250, 76, '⚡ BOOST!', {
-        font: '13px Arial', fill: '#ffff00', fontStyle: 'bold',
-        stroke: '#000000', strokeThickness: 3
-    }).setVisible(false);
+    labelBoost = this.add.text(250, 76, '⚡ BOOST!', { font: '13px Arial', fill: '#ffff00', fontStyle: 'bold', stroke: '#000000', strokeThickness: 3 }).setVisible(false);
 
-    // O relógio e energia agora grudam no canto DIREITO (W - margem)
     const cx = W - 104, cy = 108;
-
+    
+    // O background do relógio e os ponteiros mantive em Graphics, 
+    // mas você pode substituir por sprites estáticos também!
     let clockShadow = this.add.graphics();
-    clockShadow.fillStyle(0x000000, 0.5);
-    clockShadow.fillCircle(cx + 3, cy + 3, 57);
-
+    clockShadow.fillStyle(0x000000, 0.5); clockShadow.fillCircle(cx + 3, cy + 3, 57);
     let clockFace = this.add.graphics();
-    clockFace.fillStyle(0x1c0f04, 1);
-    clockFace.fillCircle(cx, cy, 54);
+    clockFace.fillStyle(0x1c0f04, 1); clockFace.fillCircle(cx, cy, 54);
+    clockFace.lineStyle(5, 0xd4af37, 1); clockFace.strokeCircle(cx, cy, 55);
 
-    clockFace.lineStyle(1.5, 0xd4af37, 0.25);
-    clockFace.strokeCircle(cx, cy, 44);
+    graficoTempoPizza = this.add.graphics({ x: cx, y: cy }).setDepth(1); // Mantido dinâmico
 
-    clockFace.lineStyle(5, 0xd4af37, 1);
-    clockFace.strokeCircle(cx, cy, 55);
-    clockFace.lineStyle(1, 0xfff5cc, 0.35);
-    clockFace.strokeCircle(cx, cy, 58);
-
-    graficoTempoPizza = this.add.graphics({ x: cx, y: cy }).setDepth(1);
-
-    let tickGfx = this.add.graphics().setDepth(2);
-    for (let i = 0; i < 12; i++) {
-        let ang = (Math.PI * 2 / 12) * i - Math.PI / 2;
-        let isCard = (i % 3 === 0);
-        let r1 = isCard ? 38 : 42, r2 = 50;
-        let lw = isCard ? 3 : 1.5;
-        let alpha = isCard ? 1 : 0.6;
-        tickGfx.lineStyle(lw, 0xd4af37, alpha);
-        tickGfx.lineBetween(
-            cx + Math.cos(ang) * r1, cy + Math.sin(ang) * r1,
-            cx + Math.cos(ang) * r2, cy + Math.sin(ang) * r2
-        );
-    }
-
-    this.add.text(cx, cy - 24, 'TEMPO', {
-        font: '11px Arial', fill: '#bf8b6e', fontStyle: 'bold'
-    }).setOrigin(0.5).setDepth(3);
-
-    textoRelogio = this.add.text(cx, cy + 10, '100', {
-        font: 'bold 26px Arial', fill: '#f0e0b0', stroke: '#000000', strokeThickness: 3
-    }).setOrigin(0.5).setDepth(3);
-
-    let centerDot = this.add.graphics().setDepth(4);
-    centerDot.fillStyle(0xd4af37, 1);
-    centerDot.fillCircle(cx, cy, 4);
+    this.add.text(cx, cy - 24, 'TEMPO', { font: '11px Arial', fill: '#bf8b6e', fontStyle: 'bold' }).setOrigin(0.5).setDepth(3);
+    textoRelogio = this.add.text(cx, cy + 10, '100', { font: 'bold 26px Arial', fill: '#f0e0b0', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5).setDepth(3);
 
     grupoObjetos = this.physics.add.group();
-    linhaCorda = this.add.graphics();
+    linhaCorda = this.add.graphics(); // Mantido vetor para conectar a garra dinamicamente
 
-    // A garra agora nasce no MEIO EXATO da largura dinâmica
-    gancho = this.add.rectangle(W / 2, 100, 25, 20, 0xffffff);
-    this.physics.add.existing(gancho);
+    // Garra refatorada para usar Sprite!
+    gancho = this.physics.add.sprite(W / 2, 100, 'spr_gancho');
+    // gancho.setDisplaySize(30, 30); // Descomente para forçar o tamanho caso a imagem venha grande
 
     this.physics.add.overlap(gancho, grupoObjetos, pegarObjeto, null, this);
     this.input.on('pointerdown', (pointer) => acaoPrincipal.call(this, pointer), this);
@@ -726,8 +598,7 @@ function create() {
     this.teclaEsc = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
     this.teclaM = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
 
-    // Botão de pausa fica ancorado perto do limite direito (W - 30)
-    this._criarBotaoPausa(W - 30, 26);
+    this._criarBotaoPausa(W - 30, 30);
 
     this.time.addEvent({ delay: 1000, callback: diminuirTempo, callbackScope: this, loop: true });
 
@@ -738,7 +609,6 @@ function atualizarHUD() {
     textoHUD.setText(`Cenário: ${cenarioAtual} - Fase: ${faseNoCenario} | Pontos: ${moedasColetadas}/${metaMoedas}\nFragmentos: ${fragmentosAtuais}/3 | Inventário: ${reliquiasCompletas}/3`);
 }
 
-// Passamos a largura da tela (W) para os itens não nascerem fora do cenário 16:9
 function acharPosicaoValida(raioNovoItem, larguraTela) {
     let maxTentativas = 100;
     for(let t = 0; t < maxTentativas; t++) {
@@ -765,7 +635,6 @@ function montarFase() {
     grupoObjetos.clear(true, true);
     posicoesOcupadas = [];
     moedasColetadas = 0;
-
     tempoRestante = 100;
     estamina = 150;
     fragmentoRevelado = false;
@@ -789,103 +658,56 @@ function montarFase() {
     const cfg = cfgCenario[Phaser.Math.Clamp(cenarioAtual - 1, 0, 2)];
     const W = this.cameras.main.width;
 
+    // --- INSTANCIANDO OS OBJETOS COM SPRITES ---
+
+    // Moeda Valiosa (m5)
     for (let i = 0; i < cfg.m5; i++) {
         let r = 10;
         let pos = acharPosicaoValida(r, W);
-        let gfx = this.add.graphics({ x: pos.x, y: pos.y });
-        gfx.fillStyle(0xffffff, 1);
-        gfx.fillPoints([{x:0,y:-r},{x:r,y:0},{x:0,y:r},{x:-r,y:0}], true);
-        gfx.lineStyle(2, 0xd4af37, 1);
-        gfx.strokePoints([{x:0,y:-r},{x:r,y:0},{x:0,y:r},{x:-r,y:0}], true);
-        this.physics.add.existing(gfx);
-        gfx.body.setCircle(r, -r, -r);
-        gfx.tipo = 'moeda'; gfx.peso = 0.5; gfx.valor = 5;
-        grupoObjetos.add(gfx);
+        let spr = this.physics.add.sprite(pos.x, pos.y, 'spr_moeda_ouro');
+        spr.body.setCircle(r); // Ajuste o hit-box baseado na imagem real depois
+        spr.tipo = 'moeda'; spr.peso = 0.5; spr.valor = 5;
+        grupoObjetos.add(spr);
     }
 
+    // Moeda Média (m3)
     for (let i = 0; i < cfg.m3; i++) {
         let r = 25;
         let pos = acharPosicaoValida(r, W);
-        let gfx = this.add.graphics({ x: pos.x, y: pos.y });
-        let pts = [];
-        for (let k = 0; k < 6; k++) {
-            let a = (Math.PI / 3) * k - Math.PI / 2;
-            pts.push({ x: Math.cos(a) * r, y: Math.sin(a) * r });
-        }
-        gfx.fillStyle(0xd4af37, 1);
-        gfx.fillPoints(pts, true);
-        gfx.lineStyle(2, 0xffd700, 1);
-        gfx.strokePoints(pts, true);
-        let ri = Math.round(r * 0.5);
-        let ptsI = [];
-        for (let k = 0; k < 6; k++) {
-            let a = (Math.PI / 3) * k - Math.PI / 2;
-            ptsI.push({ x: Math.cos(a) * ri, y: Math.sin(a) * ri });
-        }
-        gfx.lineStyle(1.5, 0xffffff, 0.4);
-        gfx.strokePoints(ptsI, true);
-        this.physics.add.existing(gfx);
-        gfx.body.setCircle(r, -r, -r);
-        gfx.tipo = 'moeda'; gfx.peso = 1.5; gfx.valor = 3;
-        grupoObjetos.add(gfx);
+        let spr = this.physics.add.sprite(pos.x, pos.y, 'spr_moeda_prata');
+        spr.body.setCircle(r);
+        spr.tipo = 'moeda'; spr.peso = 1.5; spr.valor = 3;
+        grupoObjetos.add(spr);
     }
 
+    // Moeda Barata (m1)
     for (let i = 0; i < cfg.m1; i++) {
         let r = 15;
         let pos = acharPosicaoValida(r, W);
-        let container = this.add.container(pos.x, pos.y);
-        let gfx = this.add.graphics();
-        gfx.fillStyle(0xffaa00, 1);
-        gfx.fillCircle(0, 0, r);
-        let txt = this.add.text(0, 0, '$', {
-            fontSize: '14px', fontStyle: 'bold', color: '#ffffff'
-        }).setOrigin(0.5);
-        container.add([gfx, txt]);
-        this.physics.add.existing(container);
-        container.body.setCircle(r, -r, -r);
-        container.tipo = 'moeda'; container.peso = 1.0; container.valor = 1;
-        grupoObjetos.add(container);
+        let spr = this.physics.add.sprite(pos.x, pos.y, 'spr_moeda_bronze');
+        spr.body.setCircle(r);
+        spr.tipo = 'moeda'; spr.peso = 1.0; spr.valor = 1;
+        grupoObjetos.add(spr);
     }
 
+    // Pedra Grande
     for (let i = 0; i < cfg.pGrande; i++) {
         let r = 45;
         let pos = acharPosicaoValida(r, W);
-        let gfx = this.add.graphics({ x: pos.x, y: pos.y });
-        gfx.fillStyle(0x444444, 1);
-        gfx.fillCircle(0, 0, r);
-        gfx.fillStyle(0x333333, 1);
-        gfx.fillEllipse(10, 12, 35, 28);
-        gfx.fillStyle(0x888888, 0.5);
-        gfx.fillEllipse(-14, -16, 18, 12);
-        this.physics.add.existing(gfx);
-        gfx.body.setCircle(r, -r, -r);
-        gfx.tipo = 'pedra_pesada'; gfx.peso = 8.0; gfx.valor = 0;
-        grupoObjetos.add(gfx);
+        let spr = this.physics.add.sprite(pos.x, pos.y, 'spr_pedra_grande');
+        spr.body.setCircle(r);
+        spr.tipo = 'pedra_pesada'; spr.peso = 8.0; spr.valor = 0;
+        grupoObjetos.add(spr);
     }
 
+    // Pedra Pequena
     for (let i = 0; i < cfg.pPequena; i++) {
         let r = 20;
         let pos = acharPosicaoValida(r, W);
-        let gfx = this.add.graphics({ x: pos.x, y: pos.y });
-        let triPts = [
-            { x: 0,  y: -r },
-            { x: r,  y: r * 0.8 },
-            { x: -r, y: r * 0.8 }
-        ];
-        gfx.fillStyle(0x888888, 1);
-        gfx.fillPoints(triPts, true);
-        gfx.lineStyle(2, 0x666666, 1);
-        gfx.strokePoints(triPts, true);
-        gfx.fillStyle(0xaaaaaa, 0.55);
-        gfx.fillPoints([
-            { x: 0,        y: -r * 0.6 },
-            { x: r * 0.38,  y: -r * 0.05 },
-            { x: -r * 0.38, y: -r * 0.05 }
-        ], true);
-        this.physics.add.existing(gfx);
-        gfx.body.setCircle(r, -r, -r);
-        gfx.tipo = 'pedra_pesada'; gfx.peso = 4.0; gfx.valor = 0;
-        grupoObjetos.add(gfx);
+        let spr = this.physics.add.sprite(pos.x, pos.y, 'spr_pedra_pequena');
+        spr.body.setCircle(r);
+        spr.tipo = 'pedra_pesada'; spr.peso = 4.0; spr.valor = 0;
+        grupoObjetos.add(spr);
     }
 }
 
@@ -897,40 +719,29 @@ function spawnarFragmento() {
         if (!esperandoProximaFase && !jogoAcabou) textoCentro.setText('');
     });
 
-    let r = 16;
+    let r = 20;
     let pos = acharPosicaoValida(r, this.cameras.main.width);
-    let container = this.add.container(pos.x, pos.y);
-    let gfx = this.add.graphics();
+    
+    // Fragmento instanciado via Sprite!
+    let spr = this.physics.add.sprite(pos.x, pos.y, 'spr_fragmento_fase');
+    spr.body.setCircle(r);
+    spr.tipo = 'fragmento';
+    spr.peso = 2;
+    spr.valor = 0;
 
-    gfx.fillStyle(0x00ffff, 1);
-    gfx.fillPoints([{x:0,y:-r},{x:r,y:0},{x:0,y:r},{x:-r,y:0}], true);
-    gfx.lineStyle(2, 0xffffff, 0.85);
-    gfx.strokePoints([{x:0,y:-r},{x:r,y:0},{x:0,y:r},{x:-r,y:0}], true);
-    let cr = r * 0.48;
-    gfx.lineStyle(2, 0xffffff, 0.7);
-    gfx.lineBetween(0, -cr, 0, cr);
-    gfx.lineBetween(-cr, 0, cr, 0);
-
-    container.add(gfx);
-    this.physics.add.existing(container);
-    container.body.setCircle(r, -r, -r);
-
-    container.tipo = 'fragmento';
-    container.peso = 2;
-    container.valor = 0;
-
+    // Continua com a animação de pulso
     this.tweens.add({
-        targets: container,
+        targets: spr,
         scaleX: 1.22,
         scaleY: 1.22,
-        alpha: 0.72,
+        alpha: 0.8,
         duration: 480,
         yoyo: true,
         repeat: -1,
         ease: 'Sine.easeInOut'
     });
 
-    grupoObjetos.add(container);
+    grupoObjetos.add(spr);
 }
 
 function diminuirTempo() {
@@ -1218,19 +1029,13 @@ function pegarObjeto(ganchoObjeto, objetoAtingido) {
 // 9. CONFIGURAÇÃO FINAL DO PHASER (LÓGICA RESPONSIVA!)
 // =============================================================================
 
-// Calcula a proporção atual do dispositivo do jogador
 let aspect = window.innerWidth / window.innerHeight;
-
-// Fixamos a altura do jogo em 768. 
-// A largura vai se adaptar à tela (se for 16:9, vai dar mais ou menos 1366).
 let widthCalculado = Math.round(768 * aspect);
-
-// Travamos o limite para o jogo nunca ficar menor que o 4:3 clássico (1024)
-// nem mais largo que um 16:9 esticado (1366) para não quebrar a física das pedras.
 let GAME_WIDTH = Phaser.Math.Clamp(widthCalculado, 1024, 1366);
 
 const config = {
     type: Phaser.AUTO,
+    pixelArt: true,
     scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH,
