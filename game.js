@@ -31,6 +31,7 @@ let textoHUD, textoCentro, barraEstamina, labelBoost, textoRelogio;
 let teclaEspaco;
 
 let posicoesOcupadas = [];
+let musicaFase; // Armazena a trilha sonora atual
 
 // =============================================================================
 // 2. SISTEMA DE MEMORY CARD (LOCALSTORAGE)
@@ -64,9 +65,11 @@ class MenuScene extends Phaser.Scene {
     }
 
     preload() {
-        // Assets da tela de menu
         this.load.image('fundo_capa', 'img/capa.png');
-        this.load.image('ui_botao', 'img/placeholder_botao.png'); // Substitua pelo seu sprite de botão
+        this.load.image('ui_botao', 'img/placeholder_botao.png'); 
+        this.load.audio('musica_cenario_1', 'audio/primeira-musica.mp3');
+        this.load.audio('musica_cenario_2', 'audio/segunda-musica.mp3');
+        this.load.audio('musica_cenario_3', 'audio/terceira-musica.mp3');
     }
 
     create() {
@@ -80,6 +83,8 @@ class MenuScene extends Phaser.Scene {
         let scaleX = W / fundo.width;
         let scaleY = H / fundo.height;
         fundo.setScale(Math.max(scaleX, scaleY));
+
+        this.add.rectangle(0, 0, W, H, 0x000000, 0.4).setOrigin(0, 0);
 
         this._criarBotaoSprite(W / 2, 310, 'NOVO JOGO', true, () => {
             limparSave();
@@ -118,10 +123,7 @@ class MenuScene extends Phaser.Scene {
     }
 
     _criarBotaoSprite(x, y, label, ativo, callback) {
-        // Usa o sprite do botão ao invés de desenhar um retângulo
         let btn = this.add.sprite(x, y, 'ui_botao').setInteractive({ useHandCursor: ativo });
-        
-        // Simulação de tamanhos para o placeholder não ficar deformado na falta da imagem real (pode remover depois)
         btn.setDisplaySize(320, 60); 
 
         if (!ativo) {
@@ -182,13 +184,11 @@ class InventoryScene extends Phaser.Scene {
             let px = startX + (i * espacamento);
             let py = 350;
 
-            // Slot de fundo com Sprite
             let slotImg = this.add.sprite(px, py, 'ui_slot_reliquia');
             slotImg.setDisplaySize(200, 240);
 
             let fragsDestaReliquia = (reliquiasSalvas > i) ? 3 : ((reliquiasSalvas === i) ? fragmentosSalvos : 0);
 
-            // Fragmentos como Sprites
             this._renderizarFragmento(px, py + 30, fragsDestaReliquia >= 1);
             this._renderizarFragmento(px, py - 5, fragsDestaReliquia >= 2);
             this._renderizarFragmento(px, py - 45, fragsDestaReliquia >= 3);
@@ -212,8 +212,8 @@ class InventoryScene extends Phaser.Scene {
 
     _renderizarFragmento(x, y, temPeca) {
         let frag = this.add.sprite(x, y, 'spr_fragmento_inv');
-        frag.setDisplaySize(60, 30); // Placeholder size
-        if (!temPeca) frag.setTint(0x222222); // Escurece se não tiver a peça
+        frag.setDisplaySize(60, 30);
+        if (!temPeca) frag.setTint(0x222222);
     }
 
     _criarBotaoVoltar(x, y, callback) {
@@ -230,9 +230,7 @@ class InventoryScene extends Phaser.Scene {
 // 5. TELA DE TUTORIAL
 // =============================================================================
 class TutorialScene extends Phaser.Scene {
-    constructor() {
-        super({ key: 'TutorialScene' });
-    }
+    constructor() { super({ key: 'TutorialScene' }); }
 
     preload() {
         this.load.image('ui_botao', 'img/placeholder_botao.png');
@@ -251,10 +249,6 @@ class TutorialScene extends Phaser.Scene {
         this.add.text(W / 2, 100, 'COMO JOGAR', {
             fontFamily: 'Arial', fontSize: '50px', fontStyle: 'bold', color: '#d4af37', stroke: '#5c3a00', strokeThickness: 6
         }).setOrigin(0.5);
-
-        let div = this.add.graphics();
-        div.lineStyle(2, 0xd4af37, 0.4);
-        div.lineBetween(W / 2 - 200, 150, W / 2 + 200, 150);
 
         let painel = this.add.graphics();
         painel.fillStyle(0x000000, 0.5);
@@ -294,7 +288,7 @@ class TutorialScene extends Phaser.Scene {
 }
 
 // =============================================================================
-// 6. CLASSE UTILITÁRIA: SLIDER DE VOLUME
+// 6. CLASSE UTILITÁRIA: SLIDER DE VOLUME E OPÇÕES
 // =============================================================================
 class SliderVolume {
     constructor(scene, cx, sy, sw, muteY, onVolumeChange) {
@@ -380,17 +374,9 @@ class SliderVolume {
     }
 }
 
-// =============================================================================
-// 7. OPÇÕES E PAUSE
-// =============================================================================
 class OptionsScene extends Phaser.Scene {
-    constructor() {
-        super({ key: 'OptionsScene' });
-    }
-
-    preload() {
-        this.load.image('ui_botao', 'img/placeholder_botao.png');
-    }
+    constructor() { super({ key: 'OptionsScene' }); }
+    preload() { this.load.image('ui_botao', 'img/placeholder_botao.png'); }
 
     create() {
         const W = this.cameras.main.width, H = this.cameras.main.height;
@@ -406,10 +392,6 @@ class OptionsScene extends Phaser.Scene {
             fontFamily: 'Arial', fontSize: '58px', fontStyle: 'bold', color: '#d4af37', stroke: '#5c3a00', strokeThickness: 7
         }).setOrigin(0.5);
 
-        let div = this.add.graphics();
-        div.lineStyle(2, 0xd4af37, 0.4);
-        div.lineBetween(W / 2 - 220, 175, W / 2 + 220, 175);
-
         this.add.text(W / 2, 245, 'VOLUME', {
             fontFamily: 'Arial', fontSize: '28px', fontStyle: 'bold', color: '#bf8b6e'
         }).setOrigin(0.5);
@@ -420,10 +402,6 @@ class OptionsScene extends Phaser.Scene {
         new SliderVolume(this, W / 2, 330, 400, 480);
 
         this._criarBotaoVoltar(W / 2, 620, () => { this.scene.start('MenuScene'); });
-
-        this.add.text(W / 2, 730, 'O volume será aplicado assim que o jogo iniciar', {
-            fontFamily: 'Arial', fontSize: '14px', color: '#664422'
-        }).setOrigin(0.5);
     }
 
     _criarBotaoVoltar(x, y, callback) {
@@ -436,10 +414,11 @@ class OptionsScene extends Phaser.Scene {
     }
 }
 
+// =============================================================================
+// 7. PAUSA
+// =============================================================================
 class PauseScene extends Phaser.Scene {
-    constructor() {
-        super({ key: 'PauseScene' });
-    }
+    constructor() { super({ key: 'PauseScene' }); }
 
     init(data) {
         this.parentScene = data.parentScene || 'GameScene';
@@ -464,16 +443,13 @@ class PauseScene extends Phaser.Scene {
             fontFamily: 'Arial', fontSize: '58px', fontStyle: 'bold', color: '#d4af37', stroke: '#5c3a00', strokeThickness: 6
         }).setOrigin(0.5);
 
-        this.add.text(W / 2, 250, 'Ajuste o volume antes de retomar o jogo', {
-            fontFamily: 'Arial', fontSize: '22px', color: '#bf8b6e'
-        }).setOrigin(0.5);
-
         new SliderVolume(this, W / 2, 340, 400, 470, (vol) => {
             this.scene.get(this.parentScene).sound.volume = vol;
         });
 
         this._criarBotaoSprite(W / 2, 540, 'CONTINUAR', true, () => { this._retomarJogo(); });
         this._criarBotaoSprite(W / 2, 620, 'MENU INICIAL', true, () => {
+            if (musicaFase) musicaFase.stop(); // Mata o som ao sair pro menu
             this.scene.stop(this.parentScene);
             this.scene.stop();
             this.scene.start('MenuScene');
@@ -486,17 +462,9 @@ class PauseScene extends Phaser.Scene {
     _criarBotaoSprite(x, y, label, ativo, callback) {
         let btn = this.add.sprite(x, y, 'ui_botao').setInteractive({ useHandCursor: ativo });
         btn.setDisplaySize(320, 68);
-
-        if (!ativo) {
-            btn.setTint(0x555555);
-        }
-
-        let txt = this.add.text(x, y, label, {
-            fontFamily: 'Arial', fontSize: '30px', fontStyle: 'bold', color: ativo ? '#d4af37' : '#999999'
-        }).setOrigin(0.5);
-
+        if (!ativo) btn.setTint(0x555555);
+        let txt = this.add.text(x, y, label, { fontFamily: 'Arial', fontSize: '30px', fontStyle: 'bold', color: ativo ? '#d4af37' : '#999999' }).setOrigin(0.5);
         if (!callback) return;
-
         btn.on('pointerover',  () => { btn.setTint(0xffd700); txt.setScale(1.06); });
         btn.on('pointerout',   () => { btn.clearTint(); txt.setScale(1.0);  });
         btn.on('pointerdown',  callback);
@@ -515,17 +483,14 @@ class GameScene extends Phaser.Scene {
     constructor() { super({ key: 'GameScene' }); }
     
     preload() { 
-        // ===================================================
-        // AQUI FICAM TODOS OS SEUS ASSETS IN-GAME!
-        // Substitua os caminhos pelos arquivos da sua pasta img/
-        // ===================================================
+        // Assets do jogo rodando - Substitua pelas suas artes da pasta img/
+        this.load.image('spr_diamante', 'img/diamante.png');
         this.load.image('spr_gancho', 'img/placeholder_gancho.png');
-        this.load.image('spr_moeda_ouro', 'img/placeholder_moeda_ouro.png');     // m5
-        this.load.image('spr_moeda_prata', 'img/placeholder_moeda_prata.png');   // m3
-        this.load.image('spr_moeda_bronze', 'img/placeholder_moeda_bronze.png'); // m1
-        this.load.image('spr_pedra_grande', 'img/placeholder_pedra_grande.png'); // pGrande
-        this.load.image('spr_pedra_pequena', 'img/placeholder_pedra_pequena.png');// pPequena
-        this.load.image('spr_fragmento_fase', 'img/placeholder_fragmento.png');  // A relíquia que spawna
+        this.load.image('spr_moeda_prata', 'img/placeholder_moeda_prata.png'); 
+        this.load.image('spr_moeda_bronze', 'img/placeholder_moeda_bronze.png'); 
+        this.load.image('spr_pedra_grande', 'img/placeholder_pedra_grande.png'); 
+        this.load.image('spr_pedra_pequena', 'img/placeholder_pedra_pequena.png');
+        this.load.image('spr_fragmento_fase', 'img/placeholder_fragmento.png');  
         this.load.image('ui_btn_pausa', 'img/placeholder_btn_pausa.png');
     }
 
@@ -533,7 +498,10 @@ class GameScene extends Phaser.Scene {
         this.sound.volume = volumeGlobal;
         create.call(this);  
     }
-    update()  { update.call(this);  }
+    
+    update()  { 
+        update.call(this);  
+    }
 }
 
 GameScene.prototype._criarBotaoPausa = function(x, y) {
@@ -558,31 +526,27 @@ function create() {
     textoCentro = this.add.text(W / 2, H / 2, '', { font: '45px Arial', fill: '#00ff00', fontStyle: 'bold', align: 'center' }).setOrigin(0.5);
 
     this.add.text(10, 60, '⚡ ENERGIA', { font: '13px Arial', fill: '#ffdd55', fontStyle: 'bold' });
-    barraEstamina = this.add.graphics(); // Mantido como Graphics (Barra Dinâmica)
+    barraEstamina = this.add.graphics();
 
     labelBoost = this.add.text(250, 76, '⚡ BOOST!', { font: '13px Arial', fill: '#ffff00', fontStyle: 'bold', stroke: '#000000', strokeThickness: 3 }).setVisible(false);
 
     const cx = W - 104, cy = 108;
-    
-    // O background do relógio e os ponteiros mantive em Graphics, 
-    // mas você pode substituir por sprites estáticos também!
+
     let clockShadow = this.add.graphics();
     clockShadow.fillStyle(0x000000, 0.5); clockShadow.fillCircle(cx + 3, cy + 3, 57);
     let clockFace = this.add.graphics();
     clockFace.fillStyle(0x1c0f04, 1); clockFace.fillCircle(cx, cy, 54);
     clockFace.lineStyle(5, 0xd4af37, 1); clockFace.strokeCircle(cx, cy, 55);
 
-    graficoTempoPizza = this.add.graphics({ x: cx, y: cy }).setDepth(1); // Mantido dinâmico
+    graficoTempoPizza = this.add.graphics({ x: cx, y: cy }).setDepth(1);
 
     this.add.text(cx, cy - 24, 'TEMPO', { font: '11px Arial', fill: '#bf8b6e', fontStyle: 'bold' }).setOrigin(0.5).setDepth(3);
     textoRelogio = this.add.text(cx, cy + 10, '100', { font: 'bold 26px Arial', fill: '#f0e0b0', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5).setDepth(3);
 
     grupoObjetos = this.physics.add.group();
-    linhaCorda = this.add.graphics(); // Mantido vetor para conectar a garra dinamicamente
+    linhaCorda = this.add.graphics();
 
-    // Garra refatorada para usar Sprite!
     gancho = this.physics.add.sprite(W / 2, 100, 'spr_gancho');
-    // gancho.setDisplaySize(30, 30); // Descomente para forçar o tamanho caso a imagem venha grande
 
     this.physics.add.overlap(gancho, grupoObjetos, pegarObjeto, null, this);
     this.input.on('pointerdown', (pointer) => acaoPrincipal.call(this, pointer), this);
@@ -590,7 +554,7 @@ function create() {
     this.teclaEsc = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
     this.teclaM = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
 
-    this._criarBotaoPausa(W - 30, 30);
+    this._criarBotaoPausa(W - 40, 40);
 
     this.time.addEvent({ delay: 1000, callback: diminuirTempo, callbackScope: this, loop: true });
 
@@ -631,6 +595,14 @@ function montarFase() {
     estamina = 150;
     fragmentoRevelado = false;
 
+    if (musicaFase) musicaFase.stop();
+    let chaveMusica = 'musica_cenario_1';
+    if (cenarioAtual === 2) chaveMusica = 'musica_cenario_2';
+    if (cenarioAtual === 3) chaveMusica = 'musica_cenario_3';
+
+    musicaFase = this.sound.add(chaveMusica);
+    musicaFase.play({ loop: true, volume: volumeGlobal });
+
     let degrauDificuldade = ((cenarioAtual - 1) * 3) + (faseNoCenario - 1);
     velocidadeBalanço = 1.0 + (degrauDificuldade * 0.15);
     if (velocidadeBalanço > velocidadeMaxima) velocidadeBalanço = velocidadeMaxima;
@@ -642,27 +614,24 @@ function montarFase() {
     atualizarHUD();
     textoCentro.setText('');
 
+    const W = this.cameras.main.width;
     const cfgCenario = [
         { m5: 2, m3: 6, m1: 8,  pGrande: 2, pPequena: 4 },  
         { m5: 3, m3: 7, m1: 9,  pGrande: 3, pPequena: 5 },  
         { m5: 4, m3: 8, m1: 10, pGrande: 5, pPequena: 6 },  
     ];
     const cfg = cfgCenario[Phaser.Math.Clamp(cenarioAtual - 1, 0, 2)];
-    const W = this.cameras.main.width;
 
-    // --- INSTANCIANDO OS OBJETOS COM SPRITES ---
-
-    // Moeda Valiosa (m5)
+    // Diamante Pixel Art
     for (let i = 0; i < cfg.m5; i++) {
-        let r = 10;
+        let r = 15;
         let pos = acharPosicaoValida(r, W);
-        let spr = this.physics.add.sprite(pos.x, pos.y, 'spr_moeda_ouro');
-        spr.body.setCircle(r); // Ajuste o hit-box baseado na imagem real depois
+        let spr = this.physics.add.sprite(pos.x, pos.y, 'spr_diamante');
+        spr.body.setCircle(r);
         spr.tipo = 'moeda'; spr.peso = 0.5; spr.valor = 5;
         grupoObjetos.add(spr);
     }
 
-    // Moeda Média (m3)
     for (let i = 0; i < cfg.m3; i++) {
         let r = 25;
         let pos = acharPosicaoValida(r, W);
@@ -672,7 +641,6 @@ function montarFase() {
         grupoObjetos.add(spr);
     }
 
-    // Moeda Barata (m1)
     for (let i = 0; i < cfg.m1; i++) {
         let r = 15;
         let pos = acharPosicaoValida(r, W);
@@ -682,7 +650,6 @@ function montarFase() {
         grupoObjetos.add(spr);
     }
 
-    // Pedra Grande
     for (let i = 0; i < cfg.pGrande; i++) {
         let r = 45;
         let pos = acharPosicaoValida(r, W);
@@ -692,7 +659,6 @@ function montarFase() {
         grupoObjetos.add(spr);
     }
 
-    // Pedra Pequena
     for (let i = 0; i < cfg.pPequena; i++) {
         let r = 20;
         let pos = acharPosicaoValida(r, W);
@@ -714,14 +680,12 @@ function spawnarFragmento() {
     let r = 20;
     let pos = acharPosicaoValida(r, this.cameras.main.width);
     
-    // Fragmento instanciado via Sprite!
     let spr = this.physics.add.sprite(pos.x, pos.y, 'spr_fragmento_fase');
     spr.body.setCircle(r);
     spr.tipo = 'fragmento';
     spr.peso = 2;
     spr.valor = 0;
 
-    // Continua com a animação de pulso
     this.tweens.add({
         targets: spr,
         scaleX: 1.22,
@@ -751,13 +715,11 @@ function diminuirTempo() {
 
 function mostrarControlesGameOver() {
     if (this.gameOverDrawn) return;
-
     const W = this.cameras.main.width;
     this.add.rectangle(W / 2, 530, 680, 90, 0x000000, 0.55).setOrigin(0.5);
     this.add.text(W / 2, 500, 'Pressione ESPAÇO ou clique para reiniciar. Pressione M para retornar ao menu.', {
         fontFamily: 'Arial', fontSize: '24px', color: '#ffffff', align: 'center'
     }).setOrigin(0.5);
-
     this.gameOverDrawn = true;
 }
 
@@ -792,6 +754,7 @@ function acaoPrincipal(pointer) {
 function update() {
     if (jogoAcabou) {
         if (Phaser.Input.Keyboard.JustDown(this.teclaEsc) || Phaser.Input.Keyboard.JustDown(this.teclaM)) {
+            if (musicaFase) musicaFase.stop();
             this.scene.start('MenuScene');
             return;
         }
@@ -975,14 +938,7 @@ function mostrarTextoFlutuante(scene, x, y, texto, cor) {
         fontFamily: 'Arial', fontSize: '26px', fontStyle: 'bold',
         color: cor, stroke: '#000000', strokeThickness: 3
     }).setOrigin(0.5).setDepth(10);
-    scene.tweens.add({
-        targets: t,
-        y: y - 80,
-        alpha: 0,
-        duration: 900,
-        ease: 'Power2',
-        onComplete: () => t.destroy()
-    });
+    scene.tweens.add({ targets: t, y: y - 80, alpha: 0, duration: 900, ease: 'Power2', onComplete: () => t.destroy() });
 }
 
 function pulsarIrradiante(scene, x, y) {
@@ -991,15 +947,7 @@ function pulsarIrradiante(scene, x, y) {
             let ring = scene.add.graphics().setDepth(9);
             ring.lineStyle(3, 0x00ffff, 1);
             ring.strokeCircle(x, y, 10);
-            scene.tweens.add({
-                targets: ring,
-                scaleX: 5,
-                scaleY: 5,
-                alpha: 0,
-                duration: 650,
-                ease: 'Power2',
-                onComplete: () => ring.destroy()
-            });
+            scene.tweens.add({ targets: ring, scaleX: 5, scaleY: 5, alpha: 0, duration: 650, ease: 'Power2', onComplete: () => ring.destroy() });
         });
     }
 }
@@ -1018,16 +966,14 @@ function pegarObjeto(ganchoObjeto, objetoAtingido) {
 }
 
 // =============================================================================
-// 9. CONFIGURAÇÃO FINAL DO PHASER (LÓGICA RESPONSIVA!)
+// 9. CONFIGURAÇÃO FINAL DO PHASER
 // =============================================================================
-
 let aspect = window.innerWidth / window.innerHeight;
-let widthCalculado = Math.round(768 * aspect);
-let GAME_WIDTH = Phaser.Math.Clamp(widthCalculado, 1024, 1366);
+let GAME_WIDTH = Phaser.Math.Clamp(Math.round(768 * aspect), 1024, 1366);
 
 const config = {
     type: Phaser.AUTO,
-    pixelArt: true,
+    pixelArt: true, // Mantém os pixels 100% nítidos
     scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH,
