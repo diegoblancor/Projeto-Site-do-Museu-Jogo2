@@ -22,6 +22,7 @@ let tempoRestante = 100;
 let jogoAcabou = false;
 let esperandoProximaFase = false;
 let fragmentoRevelado = false;
+let jogoVencido = false;
 
 let estamina = 150;
 const estaminaMaxima = 150;
@@ -29,6 +30,8 @@ const estaminaMaxima = 150;
 let graficoTempoPizza;
 let textoHUD, textoCentro, barraEstamina, labelBoost, textoRelogio;
 let teclaEspaco;
+
+let gameOverRetangulo = null, gameOverTexto = null;
 
 let posicoesOcupadas = [];
 let musicaFase; // Armazena a trilha sonora atual
@@ -76,6 +79,8 @@ class MenuScene extends Phaser.Scene {
         const W = this.cameras.main.width;
         const H = this.cameras.main.height;
 
+        carregarJogo();
+
         let savedVol = localStorage.getItem('museuVolume');
         volumeGlobal = savedVol !== null ? parseFloat(savedVol) : 1.0;
 
@@ -89,15 +94,35 @@ class MenuScene extends Phaser.Scene {
         this._criarBotaoSprite(W / 2, 310, 'NOVO JOGO', true, () => {
             limparSave();
             cenarioAtual = 1; faseNoCenario = 1; fragmentosAtuais = 0; reliquiasCompletas = 0;
-            jogoAcabou = false; esperandoProximaFase = false;
+            jogoAcabou = false; esperandoProximaFase = false; jogoVencido = false;
             this.scene.start('GameScene');
         });
 
-        let temSave = localStorage.getItem('museuSave') !== null;
-        this._criarBotaoSprite(W / 2, 390, 'CONTINUAR', temSave, temSave ? () => {
-            jogoAcabou = false; esperandoProximaFase = false;
+        let saveText = localStorage.getItem('museuSave');
+        let temSave = saveText !== null;
+        let savePodesContinuar = temSave && (() => {
+            try {
+                let data = JSON.parse(saveText);
+                return !data.reliquias || data.reliquias < 3; // Só pode continuar se NÃO completou as 3 relíquias
+            } catch {
+                return true;
+            }
+        })();
+
+        this._criarBotaoSprite(W / 2, 390, 'CONTINUAR', savePodesContinuar, savePodesContinuar ? () => {
+            jogoAcabou = false; esperandoProximaFase = false; jogoVencido = false;
             this.scene.start('GameScene');
         } : null);
+
+        if (!savePodesContinuar && temSave) {
+            this.add.text(W / 2, 430, 'Jogo Completo!\nClique em NOVO JOGO para reiniciar.', {
+                fontFamily: 'Arial', fontSize: '13px', color: '#00ff00', align: 'center'
+            }).setOrigin(0.5);
+        } else if (!temSave) {
+            this.add.text(W / 2, 430, 'Nenhum save encontrado', {
+                fontFamily: 'Arial', fontSize: '13px', color: '#aaaaaa'
+            }).setOrigin(0.5);
+        }
 
         this._criarBotaoSprite(W / 2, 470, 'INVENTÁRIO', true, () => {
             this.scene.start('InventoryScene');
@@ -114,12 +139,6 @@ class MenuScene extends Phaser.Scene {
         this.add.text(W / 2, 735, 'Projeto de Extensão — Análise e Desenvolvimento de Sistemas', {
             fontFamily: 'Arial', fontSize: '15px', color: '#dddddd'
         }).setOrigin(0.5);
-
-        if (!temSave) {
-            this.add.text(W / 2, 430, 'Nenhum save encontrado', {
-                fontFamily: 'Arial', fontSize: '13px', color: '#aaaaaa'
-            }).setOrigin(0.5);
-        }
     }
 
     _criarBotaoSprite(x, y, label, ativo, callback) {
@@ -488,8 +507,8 @@ class GameScene extends Phaser.Scene {
         this.load.image('spr_gancho', 'img/placeholder_gancho.png');
         this.load.image('spr_moeda_prata', 'img/placeholder_moeda_prata.png'); 
         this.load.image('spr_moeda_bronze', 'img/placeholder_moeda_bronze.png'); 
-        this.load.image('spr_pedra_grande', 'img/placeholder_pedra_grande.png'); 
-        this.load.image('spr_pedra_pequena', 'img/placeholder_pedra_pequena.png');
+        this.load.image('spr_pedra_grande', './img/pedra_grande.png'); 
+        this.load.image('spr_pedra_pequena', './img/pedra_pequena.png');
         this.load.image('spr_fragmento_fase', 'img/placeholder_fragmento.png');  
         this.load.image('ui_btn_pausa', 'img/placeholder_btn_pausa.png');
     }
@@ -588,12 +607,17 @@ function acharPosicaoValida(raioNovoItem, larguraTela) {
 }
 
 function montarFase() {
+    // Limpar mensagem de game over se ainda existir
+    if (gameOverRetangulo) { gameOverRetangulo.destroy(); gameOverRetangulo = null; }
+    if (gameOverTexto) { gameOverTexto.destroy(); gameOverTexto = null; }
+    
     grupoObjetos.clear(true, true);
     posicoesOcupadas = [];
     moedasColetadas = 0;
     tempoRestante = 100;
     estamina = 150;
     fragmentoRevelado = false;
+    jogoVencido = false;
 
     if (musicaFase) musicaFase.stop();
     let chaveMusica = 'musica_cenario_1';
@@ -651,18 +675,22 @@ function montarFase() {
     }
 
     for (let i = 0; i < cfg.pGrande; i++) {
-        let r = 45;
+        // pedra grande: agora maior (display 140x140) e raio de colisão compatível
+        let r = 70;
         let pos = acharPosicaoValida(r, W);
         let spr = this.physics.add.sprite(pos.x, pos.y, 'spr_pedra_grande');
+        spr.setDisplaySize(140, 140);
         spr.body.setCircle(r);
         spr.tipo = 'pedra_pesada'; spr.peso = 8.0; spr.valor = 0;
         grupoObjetos.add(spr);
     }
 
     for (let i = 0; i < cfg.pPequena; i++) {
-        let r = 20;
+        // pedra pequena: redimensionada para o tamanho anterior da grande (90x90)
+        let r = 45;
         let pos = acharPosicaoValida(r, W);
         let spr = this.physics.add.sprite(pos.x, pos.y, 'spr_pedra_pequena');
+        spr.setDisplaySize(90, 90);
         spr.body.setCircle(r);
         spr.tipo = 'pedra_pesada'; spr.peso = 4.0; spr.valor = 0;
         grupoObjetos.add(spr);
@@ -716,8 +744,13 @@ function diminuirTempo() {
 function mostrarControlesGameOver() {
     if (this.gameOverDrawn) return;
     const W = this.cameras.main.width;
-    this.add.rectangle(W / 2, 530, 680, 90, 0x000000, 0.55).setOrigin(0.5);
-    this.add.text(W / 2, 500, 'Pressione ESPAÇO ou clique para reiniciar. Pressione M para retornar ao menu.', {
+    gameOverRetangulo = this.add.rectangle(W / 2, 530, 680, 90, 0x000000, 0.55).setOrigin(0.5);
+    
+    let mensagem = jogoVencido 
+        ? 'Você completou o jogo! Pressione M para retornar ao menu.'
+        : 'Pressione ESPAÇO ou clique para reiniciar. Pressione M para retornar ao menu.';
+    
+    gameOverTexto = this.add.text(W / 2, 500, mensagem, {
         fontFamily: 'Arial', fontSize: '24px', color: '#ffffff', align: 'center'
     }).setOrigin(0.5);
     this.gameOverDrawn = true;
@@ -725,7 +758,13 @@ function mostrarControlesGameOver() {
 
 function reiniciarFase() {
     if (!jogoAcabou) return;
+    
+    // Limpar objetos de game over
+    if (gameOverRetangulo) { gameOverRetangulo.destroy(); gameOverRetangulo = null; }
+    if (gameOverTexto) { gameOverTexto.destroy(); gameOverTexto = null; }
+    
     jogoAcabou = false;
+    jogoVencido = false;
     esperandoProximaFase = false;
     this.gameOverDrawn = false;
     montarFase.call(this);
@@ -759,7 +798,12 @@ function update() {
             return;
         }
         if (Phaser.Input.Keyboard.JustDown(teclaEspaco) || this.input.activePointer.justDown) {
-            reiniciarFase.call(this);
+            if (jogoVencido) {
+                if (musicaFase) musicaFase.stop();
+                this.scene.start('MenuScene');
+            } else {
+                reiniciarFase.call(this);
+            }
             return;
         }
         return;
@@ -909,9 +953,11 @@ function update() {
 
                         if (reliquiasCompletas >= 3) {
                             jogoAcabou = true;
+                            jogoVencido = true;
                             textoCentro.setText('PARABÉNS! VOCÊ ZEROU O MUSEU!\n3 Relíquias no Inventário!');
                             textoCentro.setColor('#00ff00');
-                            limparSave();
+                            salvarJogo();
+                            mostrarControlesGameOver.call(this);
                         } else {
                             textoCentro.setText(`CENÁRIO CONCLUÍDO!\nRelíquia guardada no Inventário.\nClique para iniciar o Cenário ${cenarioAtual}.`);
                             textoCentro.setColor('#00ff00');
