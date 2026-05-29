@@ -85,13 +85,20 @@ class MenuScene extends Phaser.Scene {
         volumeGlobal = savedVol !== null ? parseFloat(savedVol) : 1.0;
 
         let fundo = this.add.image(W / 2, H / 2, 'fundo_capa');
-        let scaleX = W / fundo.width;
-        let scaleY = H / fundo.height;
-        fundo.setScale(Math.max(scaleX, scaleY));
+        fundo.setDisplaySize(W, H);
 
-        this.add.rectangle(0, 0, W, H, 0x000000, 0.4).setOrigin(0, 0);
+        // this.add.rectangle(0, 0, W, H, 0x000000, 0.4).setOrigin(0, 0);
 
-        this._criarBotaoSprite(W / 2, 310, 'NOVO JOGO', true, () => {
+        // Grade 2/2/1 no canto inferior esquerdo
+        const colX1   = 155;     // centro da coluna esquerda
+        const colX2   = 305;     // centro da coluna direita
+        const colGap  = colX2 - colX1;
+        const linhaH  = 48;      // distância entre linhas
+        const linha3  = H - 150; // Y da última linha (OPÇÕES)
+        const linha2  = linha3 - linhaH;
+        const linha1  = linha2 - linhaH;
+
+        this._criarBotaoSprite(colX1, linha1, 'NOVO JOGO', true, () => {
             limparSave();
             cenarioAtual = 1; faseNoCenario = 1; fragmentosAtuais = 0; reliquiasCompletas = 0;
             jogoAcabou = false; esperandoProximaFase = false; jogoVencido = false;
@@ -109,48 +116,48 @@ class MenuScene extends Phaser.Scene {
             }
         })();
 
-        this._criarBotaoSprite(W / 2, 390, 'CONTINUAR', savePodesContinuar, savePodesContinuar ? () => {
+        this._criarBotaoSprite(colX2, linha1, 'CONTINUAR', savePodesContinuar, savePodesContinuar ? () => {
             jogoAcabou = false; esperandoProximaFase = false; jogoVencido = false;
             this.scene.start('GameScene');
         } : null);
 
         if (!savePodesContinuar && temSave) {
-            this.add.text(W / 2, 430, 'Jogo Completo!\nClique em NOVO JOGO para reiniciar.', {
-                fontFamily: 'Arial', fontSize: '13px', color: '#00ff00', align: 'center'
+            this.add.text(colX2, linha1 + 24, 'Jogo Completo!', {
+                fontFamily: 'Arial', fontSize: '11px', color: '#00ff00', align: 'center'
             }).setOrigin(0.5);
         } else if (!temSave) {
-            this.add.text(W / 2, 430, 'Nenhum save encontrado', {
-                fontFamily: 'Arial', fontSize: '13px', color: '#aaaaaa'
+            this.add.text(colX2, linha1 + 24, 'Sem save', {
+                fontFamily: 'Arial', fontSize: '11px', color: '#aaaaaa'
             }).setOrigin(0.5);
         }
 
-        this._criarBotaoSprite(W / 2, 470, 'INVENTÁRIO', true, () => {
+        this._criarBotaoSprite(colX1, linha2, 'INVENTÁRIO', true, () => {
             this.scene.start('InventoryScene');
         });
 
-        this._criarBotaoSprite(W / 2, 550, 'TUTORIAL', true, () => {
+        this._criarBotaoSprite(colX2, linha2, 'TUTORIAL', true, () => {
             this.scene.start('TutorialScene');
         });
 
-        this._criarBotaoSprite(W / 2, 630, 'OPÇÕES', true, () => {
+        this._criarBotaoSprite(colX1 + colGap / 2, linha3, 'OPÇÕES', true, () => {
             this.scene.start('OptionsScene');
         });
 
-        this.add.text(W / 2, 735, 'Projeto de Extensão — Análise e Desenvolvimento de Sistemas', {
-            fontFamily: 'Arial', fontSize: '15px', color: '#dddddd'
+        this.add.text(W / 2, H - 14, 'Projeto de Extensão — Análise e Desenvolvimento de Sistemas', {
+            fontFamily: 'Arial', fontSize: '12px', color: '#dddddd'
         }).setOrigin(0.5);
     }
 
     _criarBotaoSprite(x, y, label, ativo, callback) {
         let btn = this.add.sprite(x, y, 'ui_botao').setInteractive({ useHandCursor: ativo });
-        btn.setDisplaySize(320, 60); 
+        btn.setDisplaySize(125, 38);
 
         if (!ativo) {
             btn.setTint(0x555555);
         }
 
         let txt = this.add.text(x, y, label, {
-            fontFamily: 'Arial', fontSize: '26px', fontStyle: 'bold', color: ativo ? '#d4af37' : '#999999'
+            fontFamily: 'Arial', fontSize: '16px', fontStyle: 'bold', color: ativo ? '#d4af37' : '#999999'
         }).setOrigin(0.5);
 
         if (!callback) return;
@@ -504,9 +511,11 @@ class GameScene extends Phaser.Scene {
     preload() { 
         // Assets do jogo rodando - Substitua pelas suas artes da pasta img/
         this.load.image('spr_diamante', 'img/diamante.png');
-        this.load.image('spr_gancho', 'img/placeholder_gancho.png');
-        this.load.image('spr_moeda_prata', 'img/placeholder_moeda_prata.png'); 
-        this.load.image('spr_moeda_bronze', 'img/placeholder_moeda_bronze.png'); 
+        this.load.image('spr_gancho', 'img/garra_fechada.png');
+        this.load.image('fundo_cenario_terra', 'img/fundos/cenario_terra.png'); // Cenário 1 - Terra
+        this.load.image('fundo_cenario_agua', 'img/fundos/cenario_agua.png');   // Cenário 2 - Água
+        this.load.image('spr_moeda_prata', 'img/moeda_1000.png');
+        this.load.image('spr_moeda_bronze', 'img/moeda_500.png');
         this.load.image('spr_pedra_grande', './img/pedra_grande.png'); 
         this.load.image('spr_pedra_pequena', './img/pedra_pequena.png');
         this.load.image('spr_fragmento_fase', 'img/placeholder_fragmento.png');  
@@ -566,6 +575,8 @@ function create() {
     linhaCorda = this.add.graphics();
 
     gancho = this.physics.add.sprite(W / 2, 100, 'spr_gancho');
+    gancho.setDisplaySize(64, 80); // mantém a proporção da garra (919x1152)
+    gancho.setDepth(2);            // garra acima dos objetos soltos no cenário
 
     this.physics.add.overlap(gancho, grupoObjetos, pegarObjeto, null, this);
     this.input.on('pointerdown', (pointer) => acaoPrincipal.call(this, pointer), this);
@@ -631,9 +642,23 @@ function montarFase() {
     velocidadeBalanço = 1.0 + (degrauDificuldade * 0.15);
     if (velocidadeBalanço > velocidadeMaxima) velocidadeBalanço = velocidadeMaxima;
 
-    if (cenarioAtual === 1) this.cameras.main.setBackgroundColor('#3e2723');
-    else if (cenarioAtual === 2) this.cameras.main.setBackgroundColor('#1a237e');
-    else if (cenarioAtual === 3) this.cameras.main.setBackgroundColor('#b71c1c');
+    // Fundo do cenário: imagem para os que já têm arte, cor sólida para os demais
+    const Wbg = this.cameras.main.width, Hbg = this.cameras.main.height;
+    const fundosCenario = { 1: 'fundo_cenario_terra', 2: 'fundo_cenario_agua' };
+    const chaveFundo = fundosCenario[cenarioAtual];
+
+    if (chaveFundo) {
+        if (!this.fundoCenario) {
+            this.fundoCenario = this.add.image(Wbg / 2, Hbg / 2, chaveFundo).setDepth(-10);
+        } else {
+            this.fundoCenario.setTexture(chaveFundo).setVisible(true);
+        }
+        this.fundoCenario.setDisplaySize(Wbg, Hbg);
+    } else {
+        // Cenário sem imagem ainda (ex.: 3) — usa cor sólida de fallback
+        if (this.fundoCenario) this.fundoCenario.setVisible(false);
+        this.cameras.main.setBackgroundColor('#b71c1c');
+    }
 
     atualizarHUD();
     textoCentro.setText('');
@@ -646,52 +671,55 @@ function montarFase() {
     ];
     const cfg = cfgCenario[Phaser.Math.Clamp(cenarioAtual - 1, 0, 2)];
 
-    // Diamante Pixel Art
+    // Diamante (valor 5) — 36x36
     for (let i = 0; i < cfg.m5; i++) {
-        let r = 15;
+        const d = 36, r = d / 2;
         let pos = acharPosicaoValida(r, W);
         let spr = this.physics.add.sprite(pos.x, pos.y, 'spr_diamante');
-        spr.body.setCircle(r);
+        spr.setDisplaySize(d, d);
+        spr.body.setCircle(spr.width / 2);
         spr.tipo = 'moeda'; spr.peso = 0.5; spr.valor = 5;
         grupoObjetos.add(spr);
     }
 
+    // Moeda 1000 / prata (valor 3) — 42x42, menor que a de 500
     for (let i = 0; i < cfg.m3; i++) {
-        let r = 25;
+        const d = 42, r = d / 2;
         let pos = acharPosicaoValida(r, W);
         let spr = this.physics.add.sprite(pos.x, pos.y, 'spr_moeda_prata');
-        spr.body.setCircle(r);
+        spr.setDisplaySize(d, d);
+        spr.body.setCircle(spr.width / 2);
         spr.tipo = 'moeda'; spr.peso = 1.5; spr.valor = 3;
         grupoObjetos.add(spr);
     }
 
+    // Moeda 500 / bronze (valor 1) — 52x52
     for (let i = 0; i < cfg.m1; i++) {
-        let r = 15;
+        const d = 52, r = d / 2;
         let pos = acharPosicaoValida(r, W);
         let spr = this.physics.add.sprite(pos.x, pos.y, 'spr_moeda_bronze');
-        spr.body.setCircle(r);
+        spr.setDisplaySize(d, d);
+        spr.body.setCircle(spr.width / 2);
         spr.tipo = 'moeda'; spr.peso = 1.0; spr.valor = 1;
         grupoObjetos.add(spr);
     }
 
     for (let i = 0; i < cfg.pGrande; i++) {
-        // pedra grande: agora maior (display 140x140) e raio de colisão compatível
-        let r = 70;
+        const d = 170, r = d / 2;
         let pos = acharPosicaoValida(r, W);
         let spr = this.physics.add.sprite(pos.x, pos.y, 'spr_pedra_grande');
-        spr.setDisplaySize(140, 140);
-        spr.body.setCircle(r);
+        spr.setDisplaySize(d, d);
+        spr.body.setCircle(spr.width / 2);
         spr.tipo = 'pedra_pesada'; spr.peso = 8.0; spr.valor = 0;
         grupoObjetos.add(spr);
     }
 
     for (let i = 0; i < cfg.pPequena; i++) {
-        // pedra pequena: redimensionada para o tamanho anterior da grande (90x90)
-        let r = 45;
+        const d = 110, r = d / 2;
         let pos = acharPosicaoValida(r, W);
         let spr = this.physics.add.sprite(pos.x, pos.y, 'spr_pedra_pequena');
-        spr.setDisplaySize(90, 90);
-        spr.body.setCircle(r);
+        spr.setDisplaySize(d, d);
+        spr.body.setCircle(spr.width / 2);
         spr.tipo = 'pedra_pesada'; spr.peso = 4.0; spr.valor = 0;
         grupoObjetos.add(spr);
     }
@@ -1002,6 +1030,7 @@ function pegarObjeto(ganchoObjeto, objetoAtingido) {
     if (estadoGancho === 'DESCENDO') {
         estadoGancho = 'SUBINDO';
         objetoPuxado = objetoAtingido;
+        objetoPuxado.setDepth(3); // objeto agarrado sobrepõe a garra (depth 2), escondendo-a atrás
         if (objetoAtingido.tipo === 'pedra_pesada') {
             let scene = ganchoObjeto.scene;
             mostrarTextoFlutuante(scene, ganchoObjeto.x, ganchoObjeto.y, 'PESADA...', '#ff4444');
