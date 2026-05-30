@@ -1,7 +1,7 @@
 // =============================================================================
 // 1. VARIÁVEIS GLOBAIS E CONFIGURAÇÕES
 // =============================================================================
-let volumeGlobal = 1.0;   
+let volumeGlobal = 1.0;
 
 let gancho, linhaCorda, grupoObjetos;
 let estadoGancho = 'BALANCANDO', anguloGancho = 0, balancandoParaDireita = true;
@@ -69,7 +69,7 @@ class MenuScene extends Phaser.Scene {
 
     preload() {
         this.load.image('fundo_capa', 'img/capa.png');
-        this.load.image('ui_botao', 'img/placeholder_botao.png'); 
+        this.load.image('ui_botao', 'img/placeholder_botao.png');
         this.load.audio('musica_cenario_1', 'audio/primeira-musica.mp3');
         this.load.audio('musica_cenario_2', 'audio/segunda-musica.mp3');
         this.load.audio('musica_cenario_3', 'audio/terceira-musica.mp3');
@@ -90,13 +90,13 @@ class MenuScene extends Phaser.Scene {
         // this.add.rectangle(0, 0, W, H, 0x000000, 0.4).setOrigin(0, 0);
 
         // Grade 2/2/1 no canto inferior esquerdo
-        const colX1   = 155;     // centro da coluna esquerda
-        const colX2   = 305;     // centro da coluna direita
-        const colGap  = colX2 - colX1;
-        const linhaH  = 48;      // distância entre linhas
-        const linha3  = H - 150; // Y da última linha (OPÇÕES)
-        const linha2  = linha3 - linhaH;
-        const linha1  = linha2 - linhaH;
+        const colX1 = 155;     // centro da coluna esquerda
+        const colX2 = 305;     // centro da coluna direita
+        const colGap = colX2 - colX1;
+        const linhaH = 48;      // distância entre linhas
+        const linha3 = H - 150; // Y da última linha (OPÇÕES)
+        const linha2 = linha3 - linhaH;
+        const linha1 = linha2 - linhaH;
 
         this._criarBotaoSprite(colX1, linha1, 'NOVO JOGO', true, () => {
             limparSave();
@@ -162,9 +162,9 @@ class MenuScene extends Phaser.Scene {
 
         if (!callback) return;
 
-        btn.on('pointerover',  () => { btn.setTint(0xffd700); txt.setScale(1.06); });
-        btn.on('pointerout',   () => { btn.clearTint(); txt.setScale(1.0);  });
-        btn.on('pointerdown',  callback);
+        btn.on('pointerover', () => { btn.setTint(0xffd700); txt.setScale(1.06); });
+        btn.on('pointerout', () => { btn.clearTint(); txt.setScale(1.0); });
+        btn.on('pointerdown', callback);
     }
 }
 
@@ -193,7 +193,7 @@ class InventoryScene extends Phaser.Scene {
         this.add.text(W / 2, 100, 'SALA DE EXPOSIÇÃO', {
             fontFamily: 'Arial', fontSize: '50px', fontStyle: 'bold', color: '#d4af37', stroke: '#5c3a00', strokeThickness: 6
         }).setOrigin(0.5);
-        
+
         let reliquiasSalvas = 0, fragmentosSalvos = 0;
         let saveText = localStorage.getItem('museuSave');
         if (saveText) {
@@ -246,9 +246,9 @@ class InventoryScene extends Phaser.Scene {
         let btn = this.add.sprite(x, y, 'ui_botao').setInteractive({ useHandCursor: true });
         btn.setDisplaySize(280, 62);
         let txt = this.add.text(x, y, '← VOLTAR AO MENU', { fontFamily: 'Arial', fontSize: '24px', fontStyle: 'bold', color: '#d4af37' }).setOrigin(0.5);
-        btn.on('pointerover',  () => { btn.setTint(0xffd700); txt.setScale(1.05); });
-        btn.on('pointerout',   () => { btn.clearTint(); txt.setScale(1.0);  });
-        btn.on('pointerdown',  callback);
+        btn.on('pointerover', () => { btn.setTint(0xffd700); txt.setScale(1.05); });
+        btn.on('pointerout', () => { btn.clearTint(); txt.setScale(1.0); });
+        btn.on('pointerdown', callback);
     }
 }
 
@@ -307,9 +307,9 @@ class TutorialScene extends Phaser.Scene {
         let btn = this.add.sprite(x, y, 'ui_botao').setInteractive({ useHandCursor: true });
         btn.setDisplaySize(280, 62);
         let txt = this.add.text(x, y, '← ENTENDIDO!', { fontFamily: 'Arial', fontSize: '24px', fontStyle: 'bold', color: '#d4af37' }).setOrigin(0.5);
-        btn.on('pointerover',  () => { btn.setTint(0xffd700); txt.setScale(1.05); });
-        btn.on('pointerout',   () => { btn.clearTint(); txt.setScale(1.0);  });
-        btn.on('pointerdown',  callback);
+        btn.on('pointerover', () => { btn.setTint(0xffd700); txt.setScale(1.05); });
+        btn.on('pointerout', () => { btn.clearTint(); txt.setScale(1.0); });
+        btn.on('pointerdown', callback);
     }
 }
 
@@ -434,9 +434,9 @@ class OptionsScene extends Phaser.Scene {
         let btn = this.add.sprite(x, y, 'ui_botao').setInteractive({ useHandCursor: true });
         btn.setDisplaySize(280, 62);
         let txt = this.add.text(x, y, '← VOLTAR AO MENU', { fontFamily: 'Arial', fontSize: '24px', fontStyle: 'bold', color: '#d4af37' }).setOrigin(0.5);
-        btn.on('pointerover',  () => { btn.setTint(0xffd700); txt.setScale(1.05); });
-        btn.on('pointerout',   () => { btn.clearTint(); txt.setScale(1.0);  });
-        btn.on('pointerdown',  callback);
+        btn.on('pointerover', () => { btn.setTint(0xffd700); txt.setScale(1.05); });
+        btn.on('pointerout', () => { btn.clearTint(); txt.setScale(1.0); });
+        btn.on('pointerdown', callback);
     }
 }
 
@@ -491,9 +491,9 @@ class PauseScene extends Phaser.Scene {
         if (!ativo) btn.setTint(0x555555);
         let txt = this.add.text(x, y, label, { fontFamily: 'Arial', fontSize: '30px', fontStyle: 'bold', color: ativo ? '#d4af37' : '#999999' }).setOrigin(0.5);
         if (!callback) return;
-        btn.on('pointerover',  () => { btn.setTint(0xffd700); txt.setScale(1.06); });
-        btn.on('pointerout',   () => { btn.clearTint(); txt.setScale(1.0);  });
-        btn.on('pointerdown',  callback);
+        btn.on('pointerover', () => { btn.setTint(0xffd700); txt.setScale(1.06); });
+        btn.on('pointerout', () => { btn.clearTint(); txt.setScale(1.0); });
+        btn.on('pointerdown', callback);
     }
 
     _retomarJogo() {
@@ -507,38 +507,40 @@ class PauseScene extends Phaser.Scene {
 // =============================================================================
 class GameScene extends Phaser.Scene {
     constructor() { super({ key: 'GameScene' }); }
-    
-    preload() { 
-        // Assets do jogo rodando - Substitua pelas suas artes da pasta img/
+
+    preload() {
         this.load.image('spr_diamante', 'img/diamante.png');
-        this.load.image('spr_gancho', 'img/garra_fechada.png');
+        this.load.image('spr_gancho', 'img/sprites/garra_fechada.png');
         this.load.image('fundo_cenario_terra', 'img/fundos/cenario_terra.png'); // Cenário 1 - Terra
         this.load.image('fundo_cenario_agua', 'img/fundos/cenario_agua.png');   // Cenário 2 - Água
-        this.load.image('spr_moeda_prata', 'img/moeda_1000.png');
-        this.load.image('spr_moeda_bronze', 'img/moeda_500.png');
-        this.load.image('spr_pedra_grande', './img/pedra_grande.png'); 
-        this.load.image('spr_pedra_pequena', './img/pedra_pequena.png');
-        this.load.image('spr_fragmento_fase', 'img/placeholder_fragmento.png');  
+        this.load.image('fundo_cenario_cascalho', 'img/fundos/cenario_cascalho.png'); // Cenário 3 - Cascalho
+        this.load.image('spr_moeda_prata', 'img/sprites/moeda_1000.png');
+        this.load.image('spr_moeda_bronze', 'img/sprites/moeda_500.png');
+        this.load.image('spr_pedra_grande', './img/sprites/pedra_grande.png');
+        this.load.image('spr_pedra_pequena', './img/sprites/pedra_pequena.png');
+        this.load.image('spr_concha_grande', 'img/sprites/concha_grande.png');
+        this.load.image('spr_concha_pequena', 'img/sprites/concha_pequena.png');
+        this.load.image('spr_fragmento_fase', 'img/placeholder_fragmento.png');
         this.load.image('ui_btn_pausa', 'img/placeholder_btn_pausa.png');
     }
 
-    create()  { 
+    create() {
         this.sound.volume = volumeGlobal;
-        create.call(this);  
+        create.call(this);
     }
-    
-    update()  { 
-        update.call(this);  
+
+    update() {
+        update.call(this);
     }
 }
 
-GameScene.prototype._criarBotaoPausa = function(x, y) {
+GameScene.prototype._criarBotaoPausa = function (x, y) {
     let btnPausa = this.add.sprite(x, y, 'ui_btn_pausa').setInteractive({ useHandCursor: true });
     btnPausa.setDisplaySize(62, 62);
     btnPausa.on('pointerdown', () => { this._abrirMenuPausa(); });
 };
 
-GameScene.prototype._abrirMenuPausa = function() {
+GameScene.prototype._abrirMenuPausa = function () {
     if (this.scene.isPaused()) return;
     this.scene.launch('PauseScene', { parentScene: this.scene.key });
     this.scene.pause();
@@ -546,7 +548,7 @@ GameScene.prototype._abrirMenuPausa = function() {
 
 function create() {
     carregarJogo();
-    
+
     const W = this.cameras.main.width;
     const H = this.cameras.main.height;
 
@@ -578,6 +580,10 @@ function create() {
     gancho.setDisplaySize(64, 80); // mantém a proporção da garra (919x1152)
     gancho.setDepth(2);            // garra acima dos objetos soltos no cenário
 
+    // Ajusta a hitbox da garra para pegar objetos apenas com a ponta (reduz tamanho para 40% da largura e 30% da altura)
+    gancho.body.setSize(gancho.width * 0.4, gancho.height * 0.3);
+    gancho.body.setOffset(gancho.width * 0.3, gancho.height * 0.65);
+
     this.physics.add.overlap(gancho, grupoObjetos, pegarObjeto, null, this);
     this.input.on('pointerdown', (pointer) => acaoPrincipal.call(this, pointer), this);
     teclaEspaco = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
@@ -597,31 +603,31 @@ function atualizarHUD() {
 
 function acharPosicaoValida(raioNovoItem, larguraTela) {
     let maxTentativas = 100;
-    for(let t = 0; t < maxTentativas; t++) {
+    for (let t = 0; t < maxTentativas; t++) {
         let x = Phaser.Math.Between(50, larguraTela - 50);
         let y = Phaser.Math.Between(250, 700);
         let sobreposto = false;
 
-        for(let pos of posicoesOcupadas) {
-            if(Phaser.Math.Distance.Between(x, y, pos.x, pos.y) < (raioNovoItem + pos.raio + 5)) {
+        for (let pos of posicoesOcupadas) {
+            if (Phaser.Math.Distance.Between(x, y, pos.x, pos.y) < (raioNovoItem + pos.raio + 5)) {
                 sobreposto = true;
                 break;
             }
         }
 
-        if(!sobreposto) {
-            posicoesOcupadas.push({x: x, y: y, raio: raioNovoItem});
-            return {x: x, y: y};
+        if (!sobreposto) {
+            posicoesOcupadas.push({ x: x, y: y, raio: raioNovoItem });
+            return { x: x, y: y };
         }
     }
-    return {x: Phaser.Math.Between(100, larguraTela - 100), y: Phaser.Math.Between(300, 700)};
+    return { x: Phaser.Math.Between(100, larguraTela - 100), y: Phaser.Math.Between(300, 700) };
 }
 
 function montarFase() {
     // Limpar mensagem de game over se ainda existir
     if (gameOverRetangulo) { gameOverRetangulo.destroy(); gameOverRetangulo = null; }
     if (gameOverTexto) { gameOverTexto.destroy(); gameOverTexto = null; }
-    
+
     grupoObjetos.clear(true, true);
     posicoesOcupadas = [];
     moedasColetadas = 0;
@@ -644,7 +650,7 @@ function montarFase() {
 
     // Fundo do cenário: imagem para os que já têm arte, cor sólida para os demais
     const Wbg = this.cameras.main.width, Hbg = this.cameras.main.height;
-    const fundosCenario = { 1: 'fundo_cenario_terra', 2: 'fundo_cenario_agua' };
+    const fundosCenario = { 1: 'fundo_cenario_terra', 2: 'fundo_cenario_agua', 3: 'fundo_cenario_cascalho' };
     const chaveFundo = fundosCenario[cenarioAtual];
 
     if (chaveFundo) {
@@ -656,6 +662,7 @@ function montarFase() {
         this.fundoCenario.setDisplaySize(Wbg, Hbg);
     } else {
         // Cenário sem imagem ainda (ex.: 3) — usa cor sólida de fallback
+        // Cenário sem imagem ainda — usa cor sólida de fallback
         if (this.fundoCenario) this.fundoCenario.setVisible(false);
         this.cameras.main.setBackgroundColor('#b71c1c');
     }
@@ -665,9 +672,9 @@ function montarFase() {
 
     const W = this.cameras.main.width;
     const cfgCenario = [
-        { m5: 2, m3: 6, m1: 8,  pGrande: 2, pPequena: 4 },  
-        { m5: 3, m3: 7, m1: 9,  pGrande: 3, pPequena: 5 },  
-        { m5: 4, m3: 8, m1: 10, pGrande: 5, pPequena: 6 },  
+        { m5: 2, m3: 6, m1: 8, pGrande: 2, pPequena: 4 },
+        { m5: 3, m3: 7, m1: 9, pGrande: 3, pPequena: 5 },
+        { m5: 4, m3: 8, m1: 10, pGrande: 5, pPequena: 6 },
     ];
     const cfg = cfgCenario[Phaser.Math.Clamp(cenarioAtual - 1, 0, 2)];
 
@@ -677,18 +684,21 @@ function montarFase() {
         let pos = acharPosicaoValida(r, W);
         let spr = this.physics.add.sprite(pos.x, pos.y, 'spr_diamante');
         spr.setDisplaySize(d, d);
-        spr.body.setCircle(spr.width / 2);
+        // Reduz a hitbox do item para 80% do tamanho visual e centraliza
+        spr.body.setCircle(spr.width * 0.4, spr.width * 0.1, spr.height * 0.1);
         spr.tipo = 'moeda'; spr.peso = 0.5; spr.valor = 5;
         grupoObjetos.add(spr);
     }
 
-    // Moeda 1000 / prata (valor 3) — 42x42, menor que a de 500
+    // Moeda 1000 / prata (valor 3) — ajustado para a nova imagem
     for (let i = 0; i < cfg.m3; i++) {
-        const d = 42, r = d / 2;
+        const d = 64, r = d / 2; // Aumentamos o tamanho visual base (era 42, agora 64)
         let pos = acharPosicaoValida(r, W);
         let spr = this.physics.add.sprite(pos.x, pos.y, 'spr_moeda_prata');
         spr.setDisplaySize(d, d);
-        spr.body.setCircle(spr.width / 2);
+
+        // Hitbox ajustada: raio levemente menor (35%) e mais centralizado (15% de margem)
+        spr.body.setCircle(spr.width * 0.35, spr.width * 0.15, spr.height * 0.15);
         spr.tipo = 'moeda'; spr.peso = 1.5; spr.valor = 3;
         grupoObjetos.add(spr);
     }
@@ -699,27 +709,29 @@ function montarFase() {
         let pos = acharPosicaoValida(r, W);
         let spr = this.physics.add.sprite(pos.x, pos.y, 'spr_moeda_bronze');
         spr.setDisplaySize(d, d);
-        spr.body.setCircle(spr.width / 2);
+        spr.body.setCircle(spr.width * 0.4, spr.width * 0.1, spr.height * 0.1);
         spr.tipo = 'moeda'; spr.peso = 1.0; spr.valor = 1;
         grupoObjetos.add(spr);
     }
 
+    let chaveSpriteGrande = cenarioAtual === 2 ? 'spr_concha_grande' : 'spr_pedra_grande';
     for (let i = 0; i < cfg.pGrande; i++) {
         const d = 170, r = d / 2;
         let pos = acharPosicaoValida(r, W);
-        let spr = this.physics.add.sprite(pos.x, pos.y, 'spr_pedra_grande');
+        let spr = this.physics.add.sprite(pos.x, pos.y, chaveSpriteGrande);
         spr.setDisplaySize(d, d);
-        spr.body.setCircle(spr.width / 2);
+        spr.body.setCircle(spr.width * 0.4, spr.width * 0.1, spr.height * 0.1);
         spr.tipo = 'pedra_pesada'; spr.peso = 8.0; spr.valor = 0;
         grupoObjetos.add(spr);
     }
 
+    let chaveSpritePequena = cenarioAtual === 2 ? 'spr_concha_pequena' : 'spr_pedra_pequena';
     for (let i = 0; i < cfg.pPequena; i++) {
         const d = 110, r = d / 2;
         let pos = acharPosicaoValida(r, W);
-        let spr = this.physics.add.sprite(pos.x, pos.y, 'spr_pedra_pequena');
+        let spr = this.physics.add.sprite(pos.x, pos.y, chaveSpritePequena);
         spr.setDisplaySize(d, d);
-        spr.body.setCircle(spr.width / 2);
+        spr.body.setCircle(spr.width * 0.4, spr.width * 0.1, spr.height * 0.1);
         spr.tipo = 'pedra_pesada'; spr.peso = 4.0; spr.valor = 0;
         grupoObjetos.add(spr);
     }
@@ -735,9 +747,9 @@ function spawnarFragmento() {
 
     let r = 20;
     let pos = acharPosicaoValida(r, this.cameras.main.width);
-    
+
     let spr = this.physics.add.sprite(pos.x, pos.y, 'spr_fragmento_fase');
-    spr.body.setCircle(r);
+    spr.body.setCircle(spr.width * 0.4, spr.width * 0.1, spr.height * 0.1);
     spr.tipo = 'fragmento';
     spr.peso = 2;
     spr.valor = 0;
@@ -773,11 +785,11 @@ function mostrarControlesGameOver() {
     if (this.gameOverDrawn) return;
     const W = this.cameras.main.width;
     gameOverRetangulo = this.add.rectangle(W / 2, 530, 680, 90, 0x000000, 0.55).setOrigin(0.5);
-    
-    let mensagem = jogoVencido 
+
+    let mensagem = jogoVencido
         ? 'Você completou o jogo! Pressione M para retornar ao menu.'
         : 'Pressione ESPAÇO ou clique para reiniciar. Pressione M para retornar ao menu.';
-    
+
     gameOverTexto = this.add.text(W / 2, 500, mensagem, {
         fontFamily: 'Arial', fontSize: '24px', color: '#ffffff', align: 'center'
     }).setOrigin(0.5);
@@ -786,11 +798,11 @@ function mostrarControlesGameOver() {
 
 function reiniciarFase() {
     if (!jogoAcabou) return;
-    
+
     // Limpar objetos de game over
     if (gameOverRetangulo) { gameOverRetangulo.destroy(); gameOverRetangulo = null; }
     if (gameOverTexto) { gameOverTexto.destroy(); gameOverTexto = null; }
-    
+
     jogoAcabou = false;
     jogoVencido = false;
     esperandoProximaFase = false;
@@ -865,7 +877,7 @@ function update() {
 
     barraEstamina.clear();
     let propE = estamina / estaminaMaxima;
-    let corB  = propE > 0.50 ? 0x44cc44 : propE > 0.20 ? 0xffaa00 : 0xff3333;
+    let corB = propE > 0.50 ? 0x44cc44 : propE > 0.20 ? 0xffaa00 : 0xff3333;
     let alphaB = propE < 0.20 ? (Math.sin(this.time.now * 0.012) * 0.4 + 0.6) : 1;
 
     barraEstamina.fillStyle(0x111111, 0.9);
@@ -904,7 +916,7 @@ function update() {
         graficoTempoPizza.beginPath();
         graficoTempoPizza.moveTo(0, 0);
         let anguloInicioPizza = -Math.PI / 2;
-        let anguloFimPizza    = anguloInicioPizza + (porcentagemTempoPerdido * 2 * Math.PI);
+        let anguloFimPizza = anguloInicioPizza + (porcentagemTempoPerdido * 2 * Math.PI);
         graficoTempoPizza.arc(0, 0, 43, anguloInicioPizza, anguloFimPizza, false);
         graficoTempoPizza.closePath();
         graficoTempoPizza.fillPath();
@@ -924,7 +936,7 @@ function update() {
         let tamanhoDaCorda = 135;
 
         gancho.x = centroX + Math.sin(radianos) * tamanhoDaCorda;
-        gancho.y = 50  + Math.cos(radianos) * tamanhoDaCorda;
+        gancho.y = 50 + Math.cos(radianos) * tamanhoDaCorda;
         gancho.angle = -anguloGancho;
     }
     else if (estadoGancho === 'DESCENDO') {
@@ -951,7 +963,7 @@ function update() {
 
         if (gancho.y <= 100) {
             estadoGancho = 'BALANCANDO';
-            anguloGancho = Phaser.Math.Between(-55, 55); 
+            anguloGancho = Phaser.Math.Between(-55, 55);
             balancandoParaDireita = anguloGancho < 0 ? true : Phaser.Math.Between(0, 1) === 0;
 
             if (objetoPuxado) {
