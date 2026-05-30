@@ -60,6 +60,37 @@ function limparSave() {
 }
 
 // =============================================================================
+// FUNÇÃO GLOBAL: CRIAR BOTÃO ESTILIZADO DO MUSEU
+// =============================================================================
+function criarBotaoMuseu(scene, x, y, w, h, label, ativo, callback) {
+    // Cores inspiradas na fachada do Museu: Parede creme, Pilares vermelhos, Porta de madeira
+    let corParede = ativo ? 0xfdf1db : 0xcccccc;
+    let corPilar = ativo ? 0xb12423 : 0x777777;
+    let corTexto = ativo ? '#6e3c1d' : '#555555';
+
+    scene.add.rectangle(x + 4, y + 4, w, h, 0x000000, 0.4).setOrigin(0.5);
+
+    let bg = scene.add.rectangle(x, y, w, h, corParede).setOrigin(0.5);
+    bg.setStrokeStyle(4, corPilar);
+
+    let detalhe = scene.add.rectangle(x, y, w - 10, h - 10).setStrokeStyle(2, corPilar, 0.4).setOrigin(0.5);
+
+    let txt = scene.add.text(x, y, label, {
+        fontFamily: 'Arial', fontSize: Math.floor(h * 0.4) + 'px', fontStyle: 'bold', color: corTexto
+    }).setOrigin(0.5);
+
+    if (ativo) {
+        bg.setInteractive({ useHandCursor: true });
+        bg.on('pointerover', () => { bg.setFillStyle(0xffffff); txt.setScale(1.05); detalhe.setScale(1.02); });
+        bg.on('pointerout', () => { bg.setFillStyle(corParede); txt.setScale(1.0); detalhe.setScale(1.0); });
+        if (callback) {
+            bg.on('pointerdown', () => { bg.setFillStyle(0xe8d5b5); scene.time.delayedCall(50, callback); });
+        }
+    }
+    return bg;
+}
+
+// =============================================================================
 // 3. TELA INICIAL (MENU PRINCIPAL)
 // =============================================================================
 class MenuScene extends Phaser.Scene {
@@ -69,7 +100,6 @@ class MenuScene extends Phaser.Scene {
 
     preload() {
         this.load.image('fundo_capa', 'img/capa.png');
-        this.load.image('ui_botao', 'img/placeholder_botao.png');
         this.load.audio('musica_cenario_1', 'audio/primeira-musica.mp3');
         this.load.audio('musica_cenario_2', 'audio/segunda-musica.mp3');
         this.load.audio('musica_cenario_3', 'audio/terceira-musica.mp3');
@@ -90,8 +120,8 @@ class MenuScene extends Phaser.Scene {
         // this.add.rectangle(0, 0, W, H, 0x000000, 0.4).setOrigin(0, 0);
 
         // Grade 2/2/1 no canto inferior esquerdo
-        const colX1 = 155;     // centro da coluna esquerda
-        const colX2 = 305;     // centro da coluna direita
+        const colX1 = 210;     // centro da coluna esquerda (era 155)
+        const colX2 = 360;     // centro da coluna direita (era 305)
         const colGap = colX2 - colX1;
         const linhaH = 48;      // distância entre linhas
         const linha3 = H - 150; // Y da última linha (OPÇÕES)
@@ -149,22 +179,7 @@ class MenuScene extends Phaser.Scene {
     }
 
     _criarBotaoSprite(x, y, label, ativo, callback) {
-        let btn = this.add.sprite(x, y, 'ui_botao').setInteractive({ useHandCursor: ativo });
-        btn.setDisplaySize(125, 38);
-
-        if (!ativo) {
-            btn.setTint(0x555555);
-        }
-
-        let txt = this.add.text(x, y, label, {
-            fontFamily: 'Arial', fontSize: '16px', fontStyle: 'bold', color: ativo ? '#d4af37' : '#999999'
-        }).setOrigin(0.5);
-
-        if (!callback) return;
-
-        btn.on('pointerover', () => { btn.setTint(0xffd700); txt.setScale(1.06); });
-        btn.on('pointerout', () => { btn.clearTint(); txt.setScale(1.0); });
-        btn.on('pointerdown', callback);
+        criarBotaoMuseu(this, x, y, 140, 42, label, ativo, callback);
     }
 }
 
@@ -175,7 +190,6 @@ class InventoryScene extends Phaser.Scene {
     constructor() { super({ key: 'InventoryScene' }); }
 
     preload() {
-        this.load.image('ui_botao', 'img/placeholder_botao.png');
         this.load.image('ui_slot_reliquia', 'img/placeholder_slot.png');
         this.load.image('spr_fragmento_inv', 'img/placeholder_frag_inv.png');
     }
@@ -243,12 +257,7 @@ class InventoryScene extends Phaser.Scene {
     }
 
     _criarBotaoVoltar(x, y, callback) {
-        let btn = this.add.sprite(x, y, 'ui_botao').setInteractive({ useHandCursor: true });
-        btn.setDisplaySize(280, 62);
-        let txt = this.add.text(x, y, '← VOLTAR AO MENU', { fontFamily: 'Arial', fontSize: '24px', fontStyle: 'bold', color: '#d4af37' }).setOrigin(0.5);
-        btn.on('pointerover', () => { btn.setTint(0xffd700); txt.setScale(1.05); });
-        btn.on('pointerout', () => { btn.clearTint(); txt.setScale(1.0); });
-        btn.on('pointerdown', callback);
+        criarBotaoMuseu(this, x, y, 280, 62, '← VOLTAR AO MENU', true, callback);
     }
 }
 
@@ -257,10 +266,6 @@ class InventoryScene extends Phaser.Scene {
 // =============================================================================
 class TutorialScene extends Phaser.Scene {
     constructor() { super({ key: 'TutorialScene' }); }
-
-    preload() {
-        this.load.image('ui_botao', 'img/placeholder_botao.png');
-    }
 
     create() {
         const W = this.cameras.main.width, H = this.cameras.main.height;
@@ -304,12 +309,7 @@ class TutorialScene extends Phaser.Scene {
     }
 
     _criarBotaoVoltar(x, y, callback) {
-        let btn = this.add.sprite(x, y, 'ui_botao').setInteractive({ useHandCursor: true });
-        btn.setDisplaySize(280, 62);
-        let txt = this.add.text(x, y, '← ENTENDIDO!', { fontFamily: 'Arial', fontSize: '24px', fontStyle: 'bold', color: '#d4af37' }).setOrigin(0.5);
-        btn.on('pointerover', () => { btn.setTint(0xffd700); txt.setScale(1.05); });
-        btn.on('pointerout', () => { btn.clearTint(); txt.setScale(1.0); });
-        btn.on('pointerdown', callback);
+        criarBotaoMuseu(this, x, y, 280, 62, '← ENTENDIDO!', true, callback);
     }
 }
 
@@ -402,7 +402,6 @@ class SliderVolume {
 
 class OptionsScene extends Phaser.Scene {
     constructor() { super({ key: 'OptionsScene' }); }
-    preload() { this.load.image('ui_botao', 'img/placeholder_botao.png'); }
 
     create() {
         const W = this.cameras.main.width, H = this.cameras.main.height;
@@ -431,12 +430,7 @@ class OptionsScene extends Phaser.Scene {
     }
 
     _criarBotaoVoltar(x, y, callback) {
-        let btn = this.add.sprite(x, y, 'ui_botao').setInteractive({ useHandCursor: true });
-        btn.setDisplaySize(280, 62);
-        let txt = this.add.text(x, y, '← VOLTAR AO MENU', { fontFamily: 'Arial', fontSize: '24px', fontStyle: 'bold', color: '#d4af37' }).setOrigin(0.5);
-        btn.on('pointerover', () => { btn.setTint(0xffd700); txt.setScale(1.05); });
-        btn.on('pointerout', () => { btn.clearTint(); txt.setScale(1.0); });
-        btn.on('pointerdown', callback);
+        criarBotaoMuseu(this, x, y, 280, 62, '← VOLTAR AO MENU', true, callback);
     }
 }
 
@@ -448,10 +442,6 @@ class PauseScene extends Phaser.Scene {
 
     init(data) {
         this.parentScene = data.parentScene || 'GameScene';
-    }
-
-    preload() {
-        this.load.image('ui_botao', 'img/placeholder_botao.png');
     }
 
     create() {
@@ -486,14 +476,7 @@ class PauseScene extends Phaser.Scene {
     }
 
     _criarBotaoSprite(x, y, label, ativo, callback) {
-        let btn = this.add.sprite(x, y, 'ui_botao').setInteractive({ useHandCursor: ativo });
-        btn.setDisplaySize(320, 68);
-        if (!ativo) btn.setTint(0x555555);
-        let txt = this.add.text(x, y, label, { fontFamily: 'Arial', fontSize: '30px', fontStyle: 'bold', color: ativo ? '#d4af37' : '#999999' }).setOrigin(0.5);
-        if (!callback) return;
-        btn.on('pointerover', () => { btn.setTint(0xffd700); txt.setScale(1.06); });
-        btn.on('pointerout', () => { btn.clearTint(); txt.setScale(1.0); });
-        btn.on('pointerdown', callback);
+        criarBotaoMuseu(this, x, y, 320, 68, label, ativo, callback);
     }
 
     _retomarJogo() {
@@ -521,7 +504,6 @@ class GameScene extends Phaser.Scene {
         this.load.image('spr_concha_grande', 'img/sprites/concha_grande.png');
         this.load.image('spr_concha_pequena', 'img/sprites/concha_pequena.png');
         this.load.image('spr_fragmento_fase', 'img/placeholder_fragmento.png');
-        this.load.image('ui_btn_pausa', 'img/placeholder_btn_pausa.png');
     }
 
     create() {
@@ -535,9 +517,7 @@ class GameScene extends Phaser.Scene {
 }
 
 GameScene.prototype._criarBotaoPausa = function (x, y) {
-    let btnPausa = this.add.sprite(x, y, 'ui_btn_pausa').setInteractive({ useHandCursor: true });
-    btnPausa.setDisplaySize(62, 62);
-    btnPausa.on('pointerdown', () => { this._abrirMenuPausa(); });
+    criarBotaoMuseu(this, x, y, 50, 50, 'II', true, () => { this._abrirMenuPausa(); });
 };
 
 GameScene.prototype._abrirMenuPausa = function () {
@@ -625,8 +605,11 @@ function acharPosicaoValida(raioNovoItem, larguraTela) {
 
 function montarFase() {
     // Limpar mensagem de game over se ainda existir
-    if (gameOverRetangulo) { gameOverRetangulo.destroy(); gameOverRetangulo = null; }
-    if (gameOverTexto) { gameOverTexto.destroy(); gameOverTexto = null; }
+    if (gameOverRetangulo && gameOverRetangulo.active) { gameOverRetangulo.destroy(); }
+    gameOverRetangulo = null;
+    if (gameOverTexto && gameOverTexto.active) { gameOverTexto.destroy(); }
+    gameOverTexto = null;
+    this.gameOverDrawn = false;
 
     grupoObjetos.clear(true, true);
     posicoesOcupadas = [];
@@ -635,6 +618,14 @@ function montarFase() {
     estamina = 150;
     fragmentoRevelado = false;
     jogoVencido = false;
+    jogoAcabou = false;
+    esperandoProximaFase = false;
+
+    // Reseta o estado da garra para evitar bugs caso o jogador saia no meio de uma ação
+    estadoGancho = 'BALANCANDO';
+    anguloGancho = 0;
+    balancandoParaDireita = true;
+    objetoPuxado = null;
 
     if (musicaFase) musicaFase.stop();
     let chaveMusica = 'musica_cenario_1';
@@ -798,15 +789,6 @@ function mostrarControlesGameOver() {
 
 function reiniciarFase() {
     if (!jogoAcabou) return;
-
-    // Limpar objetos de game over
-    if (gameOverRetangulo) { gameOverRetangulo.destroy(); gameOverRetangulo = null; }
-    if (gameOverTexto) { gameOverTexto.destroy(); gameOverTexto = null; }
-
-    jogoAcabou = false;
-    jogoVencido = false;
-    esperandoProximaFase = false;
-    this.gameOverDrawn = false;
     montarFase.call(this);
 }
 
