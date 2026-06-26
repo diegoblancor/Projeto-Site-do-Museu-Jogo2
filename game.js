@@ -99,7 +99,7 @@ class MenuScene extends Phaser.Scene {
     }
 
     preload() {
-        this.load.image('fundo_capa', 'img/capa.png');
+        this.load.image('fundo_capa', 'img/sprites/cenarios/capa.png');
         this.load.audio('musica_cenario_1', 'audio/primeira-musica.mp3');
         this.load.audio('musica_cenario_2', 'audio/segunda-musica.mp3');
         this.load.audio('musica_cenario_3', 'audio/terceira-musica.mp3');
@@ -176,6 +176,21 @@ class MenuScene extends Phaser.Scene {
         this.add.text(W / 2, H - 14, 'Projeto de Extensão — Análise e Desenvolvimento de Sistemas', {
             fontFamily: 'Arial', fontSize: '12px', color: '#dddddd'
         }).setOrigin(0.5);
+
+        const tocaMusicaMenu = () => {
+            if (!this.sys.isActive()) return;
+            this.musicaMenu = this.sound.add('musica_cenario_1');
+            this.musicaMenu.play({ loop: true, volume: volumeGlobal });
+        };
+        if (this.sound.locked) {
+            this.sound.once('unlocked', tocaMusicaMenu);
+        } else {
+            tocaMusicaMenu();
+        }
+        this.events.once('shutdown', () => {
+            this.sound.off('unlocked', tocaMusicaMenu);
+            if (this.musicaMenu) { this.musicaMenu.stop(); this.musicaMenu.destroy(); this.musicaMenu = null; }
+        });
     }
 
     _criarBotaoSprite(x, y, label, ativo, callback) {
@@ -190,8 +205,13 @@ class InventoryScene extends Phaser.Scene {
     constructor() { super({ key: 'InventoryScene' }); }
 
     preload() {
-        this.load.image('ui_slot_reliquia', 'img/placeholder_slot.png');
-        this.load.image('spr_fragmento_inv', 'img/placeholder_frag_inv.png');
+        const relics = ['mascara', 'santo', 'tigre'];
+        relics.forEach(relic => {
+            for (let i = 1; i <= 3; i++) {
+                this.load.image(`frag_${relic}_${i}`, `img/sprites/fragmentos/${relic}${i}.png`);
+            }
+            this.load.image(`frag_${relic}_full`, `img/sprites/fragmentos/${relic}full.png`);
+        });
     }
 
     create() {
@@ -216,34 +236,50 @@ class InventoryScene extends Phaser.Scene {
             fragmentosSalvos = data.fragmentos || 0;
         }
 
-        const nomesReliquias = ["Artefato da Terra", "Cálice das Águas", "Coroa das Ruínas"];
+        const nomesReliquias = ["Máscara Ritual", "Imagem do Santo", "Tigre de Bronze"];
+        const relicKeys = ['mascara', 'santo', 'tigre'];
         const espacamento = 250;
         const startX = W / 2 - espacamento;
 
         for (let i = 0; i < 3; i++) {
             let px = startX + (i * espacamento);
-            let py = 350;
+            let py = 330;
 
-            let slotImg = this.add.sprite(px, py, 'ui_slot_reliquia');
-            slotImg.setDisplaySize(200, 240);
+            let frame = this.add.graphics();
+            frame.fillStyle(0x1a0d00, 0.85);
+            frame.fillRoundedRect(px - 100, py - 120, 200, 250, 10);
+            frame.lineStyle(3, 0xd4af37, 0.9);
+            frame.strokeRoundedRect(px - 100, py - 120, 200, 250, 10);
 
             let fragsDestaReliquia = (reliquiasSalvas > i) ? 3 : ((reliquiasSalvas === i) ? fragmentosSalvos : 0);
-
-            this._renderizarFragmento(px, py + 30, fragsDestaReliquia >= 1);
-            this._renderizarFragmento(px, py - 5, fragsDestaReliquia >= 2);
-            this._renderizarFragmento(px, py - 45, fragsDestaReliquia >= 3);
+            const rKey = relicKeys[i];
 
             if (fragsDestaReliquia === 3) {
-                this.add.text(px, py + 85, nomesReliquias[i], {
+                let fullImg = this.add.image(px, py - 10, `frag_${rKey}_full`);
+                fullImg.setDisplaySize(170, 190);
+                this.add.text(px, py + 110, nomesReliquias[i], {
                     fontFamily: 'Arial', fontSize: '18px', fontStyle: 'bold', color: '#00ff00', align: 'center'
                 }).setOrigin(0.5);
             } else if (fragsDestaReliquia > 0) {
-                this.add.text(px, py + 85, `Restaurando...\n(${fragsDestaReliquia}/3)`, {
+                for (let j = 1; j <= 3; j++) {
+                    let pieceY = py - 70 + (j - 1) * 65;
+                    let piece = this.add.image(px, pieceY, `frag_${rKey}_${j}`);
+                    piece.setDisplaySize(165, 55);
+                    if (j > fragsDestaReliquia) {
+                        piece.setTint(0x111111);
+                        piece.setAlpha(0.3);
+                    }
+                }
+                this.add.text(px, py + 110, `Restaurando...\n(${fragsDestaReliquia}/3)`, {
                     fontFamily: 'Arial', fontSize: '16px', fontStyle: 'bold', color: '#ffd700', align: 'center'
                 }).setOrigin(0.5);
             } else {
-                this.add.text(px, py - 10, '?', { fontFamily: 'Arial', fontSize: '60px', fontStyle: 'bold', color: '#443322' }).setOrigin(0.5);
-                this.add.text(px, py + 85, 'Bloqueado', { fontFamily: 'Arial', fontSize: '18px', fontStyle: 'bold', color: '#443322', align: 'center' }).setOrigin(0.5);
+                this.add.text(px, py - 10, '?', {
+                    fontFamily: 'Arial', fontSize: '60px', fontStyle: 'bold', color: '#443322'
+                }).setOrigin(0.5);
+                this.add.text(px, py + 110, 'Bloqueado', {
+                    fontFamily: 'Arial', fontSize: '18px', fontStyle: 'bold', color: '#443322', align: 'center'
+                }).setOrigin(0.5);
             }
         }
 
@@ -492,18 +528,34 @@ class GameScene extends Phaser.Scene {
     constructor() { super({ key: 'GameScene' }); }
 
     preload() {
-        this.load.image('spr_diamante', 'img/diamante.png');
-        this.load.image('spr_gancho', 'img/sprites/garra_fechada.png');
-        this.load.image('fundo_cenario_terra', 'img/fundos/cenario_terra.png'); // Cenário 1 - Terra
-        this.load.image('fundo_cenario_agua', 'img/fundos/cenario_agua.png');   // Cenário 2 - Água
-        this.load.image('fundo_cenario_cascalho', 'img/fundos/cenario_cascalho.png'); // Cenário 3 - Cascalho
-        this.load.image('spr_moeda_prata', 'img/sprites/moeda_1000.png');
-        this.load.image('spr_moeda_bronze', 'img/sprites/moeda_500.png');
-        this.load.image('spr_pedra_grande', './img/sprites/pedra_grande.png');
-        this.load.image('spr_pedra_pequena', './img/sprites/pedra_pequena.png');
-        this.load.image('spr_concha_grande', 'img/sprites/concha_grande.png');
-        this.load.image('spr_concha_pequena', 'img/sprites/concha_pequena.png');
-        this.load.image('spr_fragmento_fase', 'img/placeholder_fragmento.png');
+        this.load.image('spr_arqueologo_1', 'img/sprites/cenarios/arqueologo.chao.png');
+        this.load.image('spr_arqueologo_2', 'img/sprites/cenarios/arqueologo.jangada-removebg-preview.png');
+        this.load.image('spr_arqueologo_3', 'img/sprites/cenarios/arqueologo.jeep.png');
+        this.load.image('spr_gancho', 'img/sprites/cenarios/garra_fechada.png');
+        this.load.image('fundo_cenario_terra', 'img/sprites/cenarios/terra.jpeg');
+        this.load.image('fundo_cenario_agua', 'img/sprites/cenarios/agua.jpeg');
+        this.load.image('fundo_cenario_cascalho', 'img/sprites/cenarios/cascalho.jpeg');
+        this.load.image('spr_moeda_prata', 'img/sprites/cenarios/moeda_1000.png');
+        this.load.image('spr_moeda_bronze', 'img/sprites/cenarios/moeda_500.png');
+        this.load.image('spr_pedra_grande', 'img/sprites/cenarios/pedra_grande.png');
+        this.load.image('spr_pedra_pequena', 'img/sprites/cenarios/pedra_pequena.png');
+        this.load.image('spr_concha_grande', 'img/sprites/cenarios/concha_grande.png');
+        this.load.image('spr_concha_pequena', 'img/sprites/cenarios/concha_pequena.png');
+        this.load.image('frag_mascara_1', 'img/sprites/fragmentos/mascara1.png');
+        this.load.image('frag_mascara_2', 'img/sprites/fragmentos/mascara2.png');
+        this.load.image('frag_mascara_3', 'img/sprites/fragmentos/mascara3.png');
+        this.load.image('frag_mascara_full', 'img/sprites/fragmentos/mascarafull.png');
+        this.load.image('frag_santo_1', 'img/sprites/fragmentos/santo1.png');
+        this.load.image('frag_santo_2', 'img/sprites/fragmentos/santo2.png');
+        this.load.image('frag_santo_3', 'img/sprites/fragmentos/santo3.png');
+        this.load.image('frag_santo_full', 'img/sprites/fragmentos/santofull.png');
+        this.load.image('frag_tigre_1', 'img/sprites/fragmentos/tigre1.png');
+        this.load.image('frag_tigre_2', 'img/sprites/fragmentos/tigre2.png');
+        this.load.image('frag_tigre_3', 'img/sprites/fragmentos/tigre3.png');
+        this.load.image('frag_tigre_full', 'img/sprites/fragmentos/tigrefull.png');
+        this.load.image('exib_mascara', 'img/sprites/fragmentos/mascara%20exibicao.png');
+        this.load.image('exib_santo', 'img/sprites/fragmentos/santo%20exibicao.png');
+        this.load.image('exib_tigre', 'img/sprites/fragmentos/tigre%20exibicao.png');
     }
 
     create() {
@@ -517,7 +569,7 @@ class GameScene extends Phaser.Scene {
 }
 
 GameScene.prototype._criarBotaoPausa = function (x, y) {
-    criarBotaoMuseu(this, x, y, 50, 50, 'II', true, () => { this._abrirMenuPausa(); });
+    this.botaoPausaBg = criarBotaoMuseu(this, x, y, 50, 50, 'II', true, () => { this._abrirMenuPausa(); });
 };
 
 GameScene.prototype._abrirMenuPausa = function () {
@@ -529,6 +581,19 @@ GameScene.prototype._abrirMenuPausa = function () {
 function create() {
     carregarJogo();
 
+    if (!this.textures.exists('spr_diamante')) {
+        const g = this.make.graphics({ add: false });
+        g.fillStyle(0x00ccff, 1);
+        g.fillTriangle(20, 0, 40, 20, 20, 40);
+        g.fillTriangle(20, 0, 0, 20, 20, 40);
+        g.fillStyle(0xffffff, 0.35);
+        g.fillTriangle(8, 18, 20, 2, 20, 18);
+        g.lineStyle(2, 0x0088cc, 1);
+        g.strokePoints([{ x: 20, y: 0 }, { x: 40, y: 20 }, { x: 20, y: 40 }, { x: 0, y: 20 }], true);
+        g.generateTexture('spr_diamante', 40, 40);
+        g.destroy();
+    }
+
     const W = this.cameras.main.width;
     const H = this.cameras.main.height;
 
@@ -538,7 +603,7 @@ function create() {
     this.add.text(10, 60, '⚡ ENERGIA', { font: '13px Arial', fill: '#ffdd55', fontStyle: 'bold' });
     barraEstamina = this.add.graphics();
 
-    labelBoost = this.add.text(250, 76, '⚡ BOOST!', { font: '13px Arial', fill: '#ffff00', fontStyle: 'bold', stroke: '#000000', strokeThickness: 3 }).setVisible(false);
+    labelBoost = this.add.text(250, 76, '⚡ FORÇA!', { font: '13px Arial', fill: '#ffff00', fontStyle: 'bold', stroke: '#000000', strokeThickness: 3 }).setVisible(false);
 
     const cx = W - 104, cy = 108;
 
@@ -556,13 +621,19 @@ function create() {
     grupoObjetos = this.physics.add.group();
     linhaCorda = this.add.graphics();
 
-    gancho = this.physics.add.sprite(W / 2, 100, 'spr_gancho');
+    gancho = this.physics.add.sprite(W / 2, 170, 'spr_gancho');
     gancho.setDisplaySize(64, 80); // mantém a proporção da garra (919x1152)
     gancho.setDepth(2);            // garra acima dos objetos soltos no cenário
 
     // Ajusta a hitbox da garra para pegar objetos apenas com a ponta (reduz tamanho para 40% da largura e 30% da altura)
     gancho.body.setSize(gancho.width * 0.4, gancho.height * 0.3);
     gancho.body.setOffset(gancho.width * 0.3, gancho.height * 0.65);
+
+    const arqueologoSizes = { 1: [105, 115], 2: [210, 115], 3: [165, 115] };
+    const [aw0, ah0] = arqueologoSizes[cenarioAtual] || [165, 115];
+    this.arqueologoSpr = this.add.image(W / 2, 110, `spr_arqueologo_${cenarioAtual}`);
+    this.arqueologoSpr.setDisplaySize(aw0, ah0);
+    this.arqueologoSpr.setDepth(3);
 
     this.physics.add.overlap(gancho, grupoObjetos, pegarObjeto, null, this);
     this.input.on('pointerdown', (pointer) => acaoPrincipal.call(this, pointer), this);
@@ -578,7 +649,9 @@ function create() {
 }
 
 function atualizarHUD() {
-    textoHUD.setText(`Cenário: ${cenarioAtual} - Fase: ${faseNoCenario} | Pontos: ${moedasColetadas}/${metaMoedas}\nFragmentos: ${fragmentosAtuais}/3 | Inventário: ${reliquiasCompletas}/3`);
+    const sitios = ['Ruínas da Terra', 'Leito do Rio', 'Sambaqui das Pedras'];
+    const sitio = sitios[cenarioAtual - 1] || 'Sítio Desconhecido';
+    textoHUD.setText(`Sítio: ${sitio} — Peça ${faseNoCenario}/3\nPts. de Pesquisa: ${moedasColetadas}/${metaMoedas} | Acervo: ${reliquiasCompletas}/3 relíquias`);
 }
 
 function acharPosicaoValida(raioNovoItem, larguraTela) {
@@ -610,6 +683,8 @@ function montarFase() {
     if (gameOverTexto && gameOverTexto.active) { gameOverTexto.destroy(); }
     gameOverTexto = null;
     this.gameOverDrawn = false;
+
+    if (this.botaoPausaBg) this.botaoPausaBg.setInteractive({ useHandCursor: true });
 
     grupoObjetos.clear(true, true);
     posicoesOcupadas = [];
@@ -656,6 +731,13 @@ function montarFase() {
         // Cenário sem imagem ainda — usa cor sólida de fallback
         if (this.fundoCenario) this.fundoCenario.setVisible(false);
         this.cameras.main.setBackgroundColor('#b71c1c');
+    }
+
+    if (this.arqueologoSpr) {
+        const arqueologoSizes = { 1: [105, 115], 2: [210, 115], 3: [165, 115] };
+        const [aw, ah] = arqueologoSizes[cenarioAtual] || [165, 115];
+        this.arqueologoSpr.setTexture(`spr_arqueologo_${cenarioAtual}`);
+        this.arqueologoSpr.setDisplaySize(aw, ah);
     }
 
     atualizarHUD();
@@ -729,7 +811,7 @@ function montarFase() {
 }
 
 function spawnarFragmento() {
-    textoCentro.setText('FRAGMENTO REVELADO!\nCapture-o rápido!');
+    textoCentro.setText('ARTEFATO DETECTADO!\nResgate o fragmento antes que o tempo acabe!');
     textoCentro.setColor('#00ffff');
 
     this.time.delayedCall(2500, () => {
@@ -739,8 +821,13 @@ function spawnarFragmento() {
     let r = 20;
     let pos = acharPosicaoValida(r, this.cameras.main.width);
 
-    let spr = this.physics.add.sprite(pos.x, pos.y, 'spr_fragmento_fase');
-    spr.body.setCircle(spr.width * 0.4, spr.width * 0.1, spr.height * 0.1);
+    const relicNameMap = ['mascara', 'santo', 'tigre'];
+    const relicName = relicNameMap[cenarioAtual - 1] || 'mascara';
+    const texKey = `frag_${relicName}_${faseNoCenario}`;
+
+    let spr = this.physics.add.sprite(pos.x, pos.y, texKey);
+    spr.setDisplaySize(70, 70);
+    spr.body.setSize(54, 54, true);
     spr.tipo = 'fragmento';
     spr.peso = 2;
     spr.valor = 0;
@@ -765,7 +852,7 @@ function diminuirTempo() {
 
     if (tempoRestante <= 0) {
         jogoAcabou = true;
-        textoCentro.setText('TEMPO ESGOTADO!\nGAME OVER.');
+        textoCentro.setText('FIM DA EXPEDIÇÃO!\nO tempo de escavação esgotou.');
         textoCentro.setColor('#ff0000');
         limparSave();
         mostrarControlesGameOver.call(this);
@@ -774,12 +861,13 @@ function diminuirTempo() {
 
 function mostrarControlesGameOver() {
     if (this.gameOverDrawn) return;
+    if (this.botaoPausaBg) this.botaoPausaBg.disableInteractive();
     const W = this.cameras.main.width;
     gameOverRetangulo = this.add.rectangle(W / 2, 530, 680, 90, 0x000000, 0.55).setOrigin(0.5);
 
     let mensagem = jogoVencido
-        ? 'Você completou o jogo! Pressione M para retornar ao menu.'
-        : 'Pressione ESPAÇO ou clique para reiniciar. Pressione M para retornar ao menu.';
+        ? 'Pressione M para retornar ao Museu Histórico de São José.'
+        : 'Pressione ESPAÇO ou clique para tentar novamente. M para o museu.';
 
     gameOverTexto = this.add.text(W / 2, 500, mensagem, {
         fontFamily: 'Arial', fontSize: '24px', color: '#ffffff', align: 'center'
@@ -793,6 +881,7 @@ function reiniciarFase() {
 }
 
 function acaoPrincipal(pointer) {
+    if (this._revelaFechouNesseFrame) return;
     if (jogoAcabou) {
         reiniciarFase.call(this);
         return;
@@ -813,6 +902,13 @@ function acaoPrincipal(pointer) {
 }
 
 function update() {
+    this._revelaFechouNesseFrame = false;
+    if (this._revelaAtiva) {
+        if (Phaser.Input.Keyboard.JustDown(teclaEspaco) || Phaser.Input.Keyboard.JustDown(this.teclaM)) {
+            if (this._revelaFechar) this._revelaFechar();
+        }
+        return;
+    }
     if (jogoAcabou) {
         if (Phaser.Input.Keyboard.JustDown(this.teclaEsc) || Phaser.Input.Keyboard.JustDown(this.teclaM)) {
             if (musicaFase) musicaFase.stop();
@@ -843,7 +939,7 @@ function update() {
     linhaCorda.clear();
     linhaCorda.lineStyle(3, 0xaaaaaa, 1);
     linhaCorda.beginPath();
-    linhaCorda.moveTo(centroX, 50);
+    linhaCorda.moveTo(centroX, 170);
     linhaCorda.lineTo(gancho.x, gancho.y);
     linhaCorda.strokePath();
 
@@ -851,6 +947,7 @@ function update() {
     let apertouBotao = Phaser.Input.Keyboard.JustDown(teclaEspaco) || this.input.activePointer.justDown;
     let segurandoBotao = teclaEspaco.isDown || this.input.activePointer.isDown;
     let taDandoBoost = (estadoGancho === 'SUBINDO' && objetoPuxado && objetoPuxado.tipo === 'pedra_pesada' && segurandoBotao && estamina >= 1.5);
+
 
     if (!taDandoBoost && estamina < estaminaMaxima) {
         estamina += 0.15;
@@ -918,7 +1015,7 @@ function update() {
         let tamanhoDaCorda = 135;
 
         gancho.x = centroX + Math.sin(radianos) * tamanhoDaCorda;
-        gancho.y = 50 + Math.cos(radianos) * tamanhoDaCorda;
+        gancho.y = 170 + Math.cos(radianos) * tamanhoDaCorda;
         gancho.angle = -anguloGancho;
     }
     else if (estadoGancho === 'DESCENDO') {
@@ -943,7 +1040,7 @@ function update() {
         gancho.x -= Math.sin(radianos) * velocidadeAtual;
         gancho.y -= Math.cos(radianos) * velocidadeAtual;
 
-        if (gancho.y <= 100) {
+        if (gancho.y <= 220) {
             estadoGancho = 'BALANCANDO';
             anguloGancho = Phaser.Math.Between(-55, 55);
             balancandoParaDireita = anguloGancho < 0 ? true : Phaser.Math.Between(0, 1) === 0;
@@ -961,36 +1058,43 @@ function update() {
                     }
                 }
                 else if (objetoPuxado.tipo === 'fragmento') {
-                    mostrarTextoFlutuante(this, gancho.x, gancho.y, 'FRAGMENTO!', '#00ffff');
+                    mostrarTextoFlutuante(this, gancho.x, gancho.y, 'ACHADO!', '#00ffff');
                     this.cameras.main.flash(300, 0, 200, 220);
                     pulsarIrradiante(this, gancho.x, gancho.y);
                     fragmentosAtuais++;
                     faseNoCenario++;
+
+                    const cenarioCaptura = cenarioAtual;
+                    const fragsCapturados = fragmentosAtuais;
 
                     if (fragmentosAtuais >= 3) {
                         reliquiasCompletas++;
                         cenarioAtual++;
                         fragmentosAtuais = 0;
                         faseNoCenario = 1;
+                        salvarJogo();
 
                         if (reliquiasCompletas >= 3) {
-                            jogoAcabou = true;
-                            jogoVencido = true;
-                            textoCentro.setText('PARABÉNS! VOCÊ ZEROU O MUSEU!\n3 Relíquias no Inventário!');
-                            textoCentro.setColor('#00ff00');
-                            salvarJogo();
-                            mostrarControlesGameOver.call(this);
+                            mostrarCenarioCompleto(this, cenarioCaptura, () => {
+                                mostrarVitoriaFinal(this, () => {
+                                    if (musicaFase) musicaFase.stop();
+                                    this.scene.start('MenuScene');
+                                });
+                            });
                         } else {
-                            textoCentro.setText(`CENÁRIO CONCLUÍDO!\nRelíquia guardada no Inventário.\nClique para iniciar o Cenário ${cenarioAtual}.`);
-                            textoCentro.setColor('#00ff00');
-                            esperandoProximaFase = true;
-                            salvarJogo();
+                            mostrarCenarioCompleto(this, cenarioCaptura, () => {
+                                textoCentro.setText(`Fase ${cenarioAtual} desbloqueada!\nClique para iniciar a próxima escavação.`);
+                                textoCentro.setColor('#00ff00');
+                                esperandoProximaFase = true;
+                            });
                         }
                     } else {
-                        textoCentro.setText(`FRAGMENTO CAPTURADO!\nFase ${faseNoCenario} liberada.\nClique para continuar.`);
-                        textoCentro.setColor('#00ff00');
-                        esperandoProximaFase = true;
                         salvarJogo();
+                        mostrarRevela(this, cenarioCaptura, fragsCapturados, () => {
+                            textoCentro.setText(`Peça ${fragsCapturados}/3 recuperada!\nClique para continuar a escavação.`);
+                            textoCentro.setColor('#00ff00');
+                            esperandoProximaFase = true;
+                        });
                     }
                 }
                 objetoPuxado.destroy();
@@ -1020,6 +1124,182 @@ function pulsarIrradiante(scene, x, y) {
     }
 }
 
+// Mostra tela de progresso após coletar fragmento 1/3 ou 2/3
+function mostrarRevela(scene, cenario, numFragmentos, aoFechar) {
+    const W = scene.cameras.main.width;
+    const H = scene.cameras.main.height;
+    const relicKey = ['mascara', 'santo', 'tigre'][cenario - 1] || 'mascara';
+    const subtitulos = ['', 'O quebra-cabeças começa a tomar forma...', 'Quase lá! Um fragmento ainda está escondido.'];
+
+    scene._revelaAtiva = true;
+    const obj = [];
+
+    obj.push(scene.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.75).setDepth(50));
+
+    let panel = scene.add.graphics().setDepth(51);
+    panel.fillStyle(0x120f09, 0.97);
+    panel.fillRoundedRect(W / 2 - 280, 100, 560, 530, 16);
+    panel.lineStyle(3, 0xd4af37, 1);
+    panel.strokeRoundedRect(W / 2 - 280, 100, 560, 530, 16);
+    obj.push(panel);
+
+    obj.push(scene.add.text(W / 2, 148, `PEÇA ${numFragmentos}/3 RECUPERADA!`, {
+        fontFamily: 'Arial', fontSize: '32px', fontStyle: 'bold',
+        color: '#00ffff', stroke: '#000000', strokeThickness: 4, align: 'center'
+    }).setOrigin(0.5).setDepth(52));
+
+    obj.push(scene.add.text(W / 2, 192, subtitulos[numFragmentos] || '', {
+        fontFamily: 'Arial', fontSize: '20px', color: '#d4af37', align: 'center'
+    }).setOrigin(0.5).setDepth(52));
+
+    for (let j = 1; j <= 3; j++) {
+        let piece = scene.add.image(W / 2, 290 + (j - 1) * 118, `frag_${relicKey}_${j}`).setDepth(52);
+        piece.setDisplaySize(310, 105);
+        if (j > numFragmentos) { piece.setTint(0x222222); piece.setAlpha(0.25); }
+        obj.push(piece);
+    }
+
+    let cont = scene.add.text(W / 2, 592, 'Clique ou ESPAÇO para continuar a escavação', {
+        fontFamily: 'Arial', fontSize: '18px', color: '#ffffff', align: 'center'
+    }).setOrigin(0.5).setDepth(52);
+    obj.push(cont);
+    scene.tweens.add({ targets: cont, alpha: 0.2, duration: 500, yoyo: true, repeat: -1 });
+
+    const fechar = () => {
+        obj.forEach(o => { if (o && o.active) o.destroy(); });
+        scene._revelaAtiva = false;
+        scene._revelaFechouNesseFrame = true;
+        scene._revelaFechar = null;
+        scene.input.off('pointerdown', fechar);
+        aoFechar();
+    };
+    scene._revelaFechar = fechar;
+    scene.input.once('pointerdown', fechar);
+}
+
+// Mostra tela de objeto completo após coletar os 3 fragmentos de um cenário (imagem exibicao)
+function mostrarCenarioCompleto(scene, cenario, aoFechar) {
+    const W = scene.cameras.main.width;
+    const H = scene.cameras.main.height;
+    const exibKeys = ['exib_mascara', 'exib_santo', 'exib_tigre'];
+    const nomes = ['Máscara Ritual', 'Imagem Sacra', 'Tigre de Bronze'];
+    const msgs = [
+        'Este artefato sagrado encontrou seu lar\nno Museu Histórico de São José!',
+        'Esta relíquia volta a ocupar\nseu lugar de honra no acervo do museu!',
+        'Esta peça única completa\na coleção arqueológica do museu!'
+    ];
+    const idx = (cenario - 1);
+
+    scene._revelaAtiva = true;
+    const obj = [];
+
+    obj.push(scene.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.88).setDepth(50));
+
+    let panel = scene.add.graphics().setDepth(51);
+    panel.fillStyle(0x120f09, 0.97);
+    panel.fillRoundedRect(W / 2 - 310, 50, 620, 660, 18);
+    panel.lineStyle(4, 0xffd700, 1);
+    panel.strokeRoundedRect(W / 2 - 310, 50, 620, 660, 18);
+    obj.push(panel);
+
+    obj.push(scene.add.text(W / 2, 100, 'OBJETO RESTAURADO!', {
+        fontFamily: 'Arial', fontSize: '38px', fontStyle: 'bold',
+        color: '#ffd700', stroke: '#5c3a00', strokeThickness: 5, align: 'center'
+    }).setOrigin(0.5).setDepth(52));
+
+    obj.push(scene.add.text(W / 2, 148, nomes[idx] || '', {
+        fontFamily: 'Arial', fontSize: '24px', fontStyle: 'bold italic',
+        color: '#ffffff', stroke: '#000000', strokeThickness: 3, align: 'center'
+    }).setOrigin(0.5).setDepth(52));
+
+    let img = scene.add.image(W / 2, 390, exibKeys[idx] || exibKeys[0]).setDepth(52);
+    img.setDisplaySize(340, 390);
+    obj.push(img);
+    scene.tweens.add({ targets: img, scaleX: 1.04, scaleY: 1.04, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+    obj.push(scene.add.text(W / 2, 604, msgs[idx] || '', {
+        fontFamily: 'Arial', fontSize: '20px', color: '#d4af37',
+        align: 'center', lineSpacing: 4
+    }).setOrigin(0.5).setDepth(52));
+
+    let cont = scene.add.text(W / 2, 665, 'Clique ou ESPAÇO para continuar', {
+        fontFamily: 'Arial', fontSize: '18px', color: '#ffffff', align: 'center'
+    }).setOrigin(0.5).setDepth(52);
+    obj.push(cont);
+    scene.tweens.add({ targets: cont, alpha: 0.2, duration: 500, yoyo: true, repeat: -1 });
+
+    const fechar = () => {
+        obj.forEach(o => { if (o && o.active) o.destroy(); });
+        scene._revelaAtiva = false;
+        scene._revelaFechouNesseFrame = true;
+        scene._revelaFechar = null;
+        scene.input.off('pointerdown', fechar);
+        aoFechar();
+    };
+    scene._revelaFechar = fechar;
+    scene.input.once('pointerdown', fechar);
+}
+
+// Mostra tela de vitória com os 3 objetos completos (imagens full)
+function mostrarVitoriaFinal(scene, aoFechar) {
+    const W = scene.cameras.main.width;
+    const H = scene.cameras.main.height;
+
+    scene._revelaAtiva = true;
+    const obj = [];
+
+    obj.push(scene.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.92).setDepth(50));
+
+    let panel = scene.add.graphics().setDepth(51);
+    panel.fillStyle(0x120f09, 0.98);
+    panel.fillRoundedRect(W / 2 - 490, 30, 980, 710, 20);
+    panel.lineStyle(5, 0xffd700, 1);
+    panel.strokeRoundedRect(W / 2 - 490, 30, 980, 710, 20);
+    obj.push(panel);
+
+    obj.push(scene.add.text(W / 2, 88, 'MISSÃO ARQUEOLÓGICA CUMPRIDA!', {
+        fontFamily: 'Arial', fontSize: '38px', fontStyle: 'bold',
+        color: '#ffd700', stroke: '#5c3a00', strokeThickness: 6, align: 'center'
+    }).setOrigin(0.5).setDepth(52));
+
+    const fullKeys = ['frag_mascara_full', 'frag_santo_full', 'frag_tigre_full'];
+    const nomes = ['Máscara Ritual', 'Imagem Sacra', 'Tigre de Bronze'];
+    const startX = W / 2 - 310;
+
+    for (let i = 0; i < 3; i++) {
+        let ix = startX + i * 310;
+        let img = scene.add.image(ix, 370, fullKeys[i]).setDepth(52);
+        img.setDisplaySize(250, 290);
+        obj.push(img);
+        scene.tweens.add({ targets: img, scaleX: 1.04, scaleY: 1.04, duration: 800 + i * 130, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+        obj.push(scene.add.text(ix, 525, nomes[i], {
+            fontFamily: 'Arial', fontSize: '18px', fontStyle: 'bold', color: '#d4af37', align: 'center'
+        }).setOrigin(0.5).setDepth(52));
+    }
+
+    obj.push(scene.add.text(W / 2, 590, 'Três artefatos históricos foram resgatados e agora fazem\nparte permanente do acervo do Museu Histórico de São José.\nObrigado por preservar nossa história!', {
+        fontFamily: 'Arial', fontSize: '19px', color: '#ffffff',
+        align: 'center', lineSpacing: 4
+    }).setOrigin(0.5).setDepth(52));
+
+    let cont = scene.add.text(W / 2, 690, 'Clique, ESPAÇO ou M para retornar ao Museu Histórico de São José', {
+        fontFamily: 'Arial', fontSize: '17px', color: '#ffffff', align: 'center'
+    }).setOrigin(0.5).setDepth(52);
+    obj.push(cont);
+    scene.tweens.add({ targets: cont, alpha: 0.2, duration: 500, yoyo: true, repeat: -1 });
+
+    const fechar = () => {
+        obj.forEach(o => { if (o && o.active) o.destroy(); });
+        scene._revelaAtiva = false;
+        scene._revelaFechouNesseFrame = true;
+        scene._revelaFechar = null;
+        scene.input.off('pointerdown', fechar);
+        aoFechar();
+    };
+    scene._revelaFechar = fechar;
+    scene.input.once('pointerdown', fechar);
+}
+
 function pegarObjeto(ganchoObjeto, objetoAtingido) {
     if (estadoGancho === 'DESCENDO') {
         estadoGancho = 'SUBINDO';
@@ -1027,7 +1307,7 @@ function pegarObjeto(ganchoObjeto, objetoAtingido) {
         objetoPuxado.setDepth(3); // objeto agarrado sobrepõe a garra (depth 2), escondendo-a atrás
         if (objetoAtingido.tipo === 'pedra_pesada') {
             let scene = ganchoObjeto.scene;
-            mostrarTextoFlutuante(scene, ganchoObjeto.x, ganchoObjeto.y, 'PESADA...', '#ff4444');
+            mostrarTextoFlutuante(scene, ganchoObjeto.x, ganchoObjeto.y, 'MUITO PESADA!', '#ff4444');
             scene.cameras.main.flash(200, 255, 30, 0);
             scene.cameras.main.shake(220, 0.005);
         }
