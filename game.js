@@ -832,17 +832,6 @@ function spawnarFragmento() {
     spr.peso = 2;
     spr.valor = 0;
 
-    this.tweens.add({
-        targets: spr,
-        scaleX: 1.22,
-        scaleY: 1.22,
-        alpha: 0.8,
-        duration: 480,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut'
-    });
-
     grupoObjetos.add(spr);
 }
 
@@ -1153,8 +1142,11 @@ function mostrarRevela(scene, cenario, numFragmentos, aoFechar) {
     }).setOrigin(0.5).setDepth(52));
 
     for (let j = 1; j <= 3; j++) {
-        let piece = scene.add.image(W / 2, 290 + (j - 1) * 118, `frag_${relicKey}_${j}`).setDepth(52);
-        piece.setDisplaySize(310, 105);
+        const tk = `frag_${relicKey}_${j}`;
+        const src = scene.textures.get(tk).getSourceImage();
+        const scale = Math.min(200 / src.width, 110 / src.height);
+        let piece = scene.add.image(W / 2, 285 + (j - 1) * 115, tk).setDepth(52);
+        piece.setDisplaySize(Math.round(src.width * scale), Math.round(src.height * scale));
         if (j > numFragmentos) { piece.setTint(0x222222); piece.setAlpha(0.25); }
         obj.push(piece);
     }
@@ -1212,10 +1204,12 @@ function mostrarCenarioCompleto(scene, cenario, aoFechar) {
         color: '#ffffff', stroke: '#000000', strokeThickness: 3, align: 'center'
     }).setOrigin(0.5).setDepth(52));
 
-    let img = scene.add.image(W / 2, 390, exibKeys[idx] || exibKeys[0]).setDepth(52);
-    img.setDisplaySize(340, 390);
+    const exibKey = exibKeys[idx] || exibKeys[0];
+    const exibSrc = scene.textures.get(exibKey).getSourceImage();
+    const exibScale = Math.min(500 / exibSrc.width, 420 / exibSrc.height);
+    let img = scene.add.image(W / 2, 390, exibKey).setDepth(52);
+    img.setDisplaySize(Math.round(exibSrc.width * exibScale), Math.round(exibSrc.height * exibScale));
     obj.push(img);
-    scene.tweens.add({ targets: img, scaleX: 1.04, scaleY: 1.04, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
 
     obj.push(scene.add.text(W / 2, 604, msgs[idx] || '', {
         fontFamily: 'Arial', fontSize: '20px', color: '#d4af37',
@@ -1262,16 +1256,17 @@ function mostrarVitoriaFinal(scene, aoFechar) {
         color: '#ffd700', stroke: '#5c3a00', strokeThickness: 6, align: 'center'
     }).setOrigin(0.5).setDepth(52));
 
-    const fullKeys = ['frag_mascara_full', 'frag_santo_full', 'frag_tigre_full'];
+    const vitoriaExibKeys = ['exib_mascara', 'exib_santo', 'exib_tigre'];
     const nomes = ['Máscara Ritual', 'Imagem Sacra', 'Tigre de Bronze'];
     const startX = W / 2 - 310;
 
     for (let i = 0; i < 3; i++) {
         let ix = startX + i * 310;
-        let img = scene.add.image(ix, 370, fullKeys[i]).setDepth(52);
-        img.setDisplaySize(250, 290);
+        const src = scene.textures.get(vitoriaExibKeys[i]).getSourceImage();
+        const scale = Math.min(280 / src.width, 350 / src.height);
+        let img = scene.add.image(ix, 330, vitoriaExibKeys[i]).setDepth(52);
+        img.setDisplaySize(Math.round(src.width * scale), Math.round(src.height * scale));
         obj.push(img);
-        scene.tweens.add({ targets: img, scaleX: 1.04, scaleY: 1.04, duration: 800 + i * 130, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
         obj.push(scene.add.text(ix, 525, nomes[i], {
             fontFamily: 'Arial', fontSize: '18px', fontStyle: 'bold', color: '#d4af37', align: 'center'
         }).setOrigin(0.5).setDepth(52));
