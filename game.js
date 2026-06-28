@@ -32,6 +32,7 @@ let textoHUD, textoCentro, barraEstamina, labelBoost, textoRelogio;
 let teclaEspaco;
 
 let gameOverRetangulo = null, gameOverTexto = null;
+let jogoFoiIniciado = false;
 
 let posicoesOcupadas = [];
 let musicaFase; // Armazena a trilha sonora atual
@@ -40,18 +41,24 @@ let musicaFase; // Armazena a trilha sonora atual
 // 2. SISTEMA DE MEMORY CARD (LOCALSTORAGE)
 // =============================================================================
 function salvarJogo() {
-    let save = { cenario: cenarioAtual, fase: faseNoCenario, fragmentos: fragmentosAtuais, reliquias: reliquiasCompletas };
+    let save = { cenario: cenarioAtual, fase: faseNoCenario, fragmentos: fragmentosAtuais, reliquias: reliquiasCompletas, moedas: moedasColetadas, tempo: tempoRestante };
     localStorage.setItem('museuSave', JSON.stringify(save));
 }
 
 function carregarJogo() {
     let saveText = localStorage.getItem('museuSave');
     if (saveText) {
-        let data = JSON.parse(saveText);
-        cenarioAtual = data.cenario;
-        faseNoCenario = data.fase;
-        fragmentosAtuais = data.fragmentos;
-        reliquiasCompletas = data.reliquias;
+        try {
+            let data = JSON.parse(saveText);
+            cenarioAtual = data.cenario || 1;
+            faseNoCenario = data.fase || 1;
+            fragmentosAtuais = data.fragmentos || 0;
+            reliquiasCompletas = data.reliquias || 0;
+            moedasColetadas = data.moedas || 0;
+            tempoRestante = data.tempo !== undefined ? data.tempo : 100;
+        } catch (e) {
+            limparSave();
+        }
     }
 }
 
@@ -131,35 +138,28 @@ class MenuScene extends Phaser.Scene {
         this._criarBotaoSprite(colX1, linha1, 'NOVO JOGO', true, () => {
             limparSave();
             cenarioAtual = 1; faseNoCenario = 1; fragmentosAtuais = 0; reliquiasCompletas = 0;
+            moedasColetadas = 0; tempoRestante = 100;
             jogoAcabou = false; esperandoProximaFase = false; jogoVencido = false;
             this.scene.start('GameScene');
         });
 
         let saveText = localStorage.getItem('museuSave');
         let temSave = saveText !== null;
-        let savePodesContinuar = temSave && (() => {
+        let savePodesContinuar = jogoFoiIniciado && temSave && (() => {
             try {
                 let data = JSON.parse(saveText);
-                return !data.reliquias || data.reliquias < 3; // Só pode continuar se NÃO completou as 3 relíquias
+                return !data.reliquias || data.reliquias < 3;
             } catch {
                 return true;
             }
         })();
 
         this._criarBotaoSprite(colX2, linha1, 'CONTINUAR', savePodesContinuar, savePodesContinuar ? () => {
+            carregarJogo();
             jogoAcabou = false; esperandoProximaFase = false; jogoVencido = false;
             this.scene.start('GameScene');
         } : null);
 
-        if (!savePodesContinuar && temSave) {
-            this.add.text(colX2, linha1 + 24, 'Jogo Completo!', {
-                fontFamily: 'Arial', fontSize: '11px', color: '#00ff00', align: 'center'
-            }).setOrigin(0.5);
-        } else if (!temSave) {
-            this.add.text(colX2, linha1 + 24, 'Sem save', {
-                fontFamily: 'Arial', fontSize: '11px', color: '#aaaaaa'
-            }).setOrigin(0.5);
-        }
 
         this._criarBotaoSprite(colX1, linha2, 'INVENTÁRIO', true, () => {
             this.scene.start('InventoryScene');
@@ -483,16 +483,29 @@ class PauseScene extends Phaser.Scene {
     create() {
         const W = this.cameras.main.width, H = this.cameras.main.height;
 
-        this.add.rectangle(0, 0, W, H, 0x000000, 0.65).setOrigin(0, 0);
+        this.add.rectangle(0, 0, W, H, 0x000000, 0.78).setOrigin(0, 0);
 
         let painel = this.add.graphics();
-        painel.fillStyle(0x120f09, 0.95);
-        painel.fillRoundedRect(W / 2 - 350, 128, 700, 512, 18);
+        painel.fillStyle(0x0d0600, 1);
+        painel.fillRoundedRect(W / 2 - 350, 128, 700, 512, 14);
+        painel.fillStyle(0x1c0d02, 0.45);
+        painel.fillRoundedRect(W / 2 - 342, 136, 684, 496, 10);
         painel.lineStyle(3, 0xd4af37, 1);
-        painel.strokeRoundedRect(W / 2 - 350, 128, 700, 512, 18);
+        painel.strokeRoundedRect(W / 2 - 350, 128, 700, 512, 14);
+        painel.lineStyle(1, 0xd4af37, 0.35);
+        painel.strokeRoundedRect(W / 2 - 342, 136, 684, 496, 10);
 
-        this.add.text(W / 2, 190, 'PAUSADO', {
-            fontFamily: 'Arial', fontSize: '58px', fontStyle: 'bold', color: '#d4af37', stroke: '#5c3a00', strokeThickness: 6
+        this.add.text(W / 2, 160, '— MUSEU HISTÓRICO DE SÃO JOSÉ —', {
+            fontFamily: 'Arial', fontSize: '11px', color: '#8b6914', fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        let sepG = this.add.graphics();
+        sepG.lineStyle(1, 0xd4af37, 0.5);
+        sepG.lineBetween(W / 2 - 280, 174, W / 2 + 280, 174);
+
+        this.add.text(W / 2, 200, 'EXPEDIÇÃO PAUSADA', {
+            fontFamily: '"Cinzel", "Georgia", serif', fontSize: '42px', fontStyle: 'bold',
+            color: '#d4af37', stroke: '#0d0600', strokeThickness: 5
         }).setOrigin(0.5);
 
         new SliderVolume(this, W / 2, 340, 400, 470, (vol) => {
@@ -501,7 +514,8 @@ class PauseScene extends Phaser.Scene {
 
         this._criarBotaoSprite(W / 2, 540, 'CONTINUAR', true, () => { this._retomarJogo(); });
         this._criarBotaoSprite(W / 2, 620, 'MENU INICIAL', true, () => {
-            if (musicaFase) musicaFase.stop(); // Mata o som ao sair pro menu
+            salvarJogo();
+            if (musicaFase) musicaFase.stop();
             this.scene.stop(this.parentScene);
             this.scene.stop();
             this.scene.start('MenuScene');
@@ -528,9 +542,9 @@ class GameScene extends Phaser.Scene {
     constructor() { super({ key: 'GameScene' }); }
 
     preload() {
-        this.load.image('spr_arqueologo_1', 'img/sprites/cenarios/arqueologo.chao.png');
-        this.load.image('spr_arqueologo_2', 'img/sprites/cenarios/arqueologo.jangada-removebg-preview.png');
-        this.load.image('spr_arqueologo_3', 'img/sprites/cenarios/arqueologo.jeep.png');
+        this.load.image('spr_arqueologo_1', 'img/sprites/cenarios/arqterra.png');
+        this.load.image('spr_arqueologo_2', 'img/sprites/cenarios/arqjangada.png');
+        this.load.image('spr_arqueologo_3', 'img/sprites/cenarios/arqjeep.png');
         this.load.image('spr_gancho', 'img/sprites/cenarios/garra_fechada.png');
         this.load.image('fundo_cenario_terra', 'img/sprites/cenarios/terra.jpeg');
         this.load.image('fundo_cenario_agua', 'img/sprites/cenarios/agua.jpeg');
@@ -574,11 +588,14 @@ GameScene.prototype._criarBotaoPausa = function (x, y) {
 
 GameScene.prototype._abrirMenuPausa = function () {
     if (this.scene.isPaused()) return;
+    estadoGancho = 'BALANCANDO';
+    if (objetoPuxado) { objetoPuxado = null; }
     this.scene.launch('PauseScene', { parentScene: this.scene.key });
     this.scene.pause();
 };
 
 function create() {
+    jogoFoiIniciado = true;
     carregarJogo();
 
     if (!this.textures.exists('spr_diamante')) {
@@ -597,8 +614,22 @@ function create() {
     const W = this.cameras.main.width;
     const H = this.cameras.main.height;
 
+    // Limpa propriedades de cena que persistem entre restarts (Phaser reutiliza a instância)
+    this.fundoCenario = null;
+    this._revelaAtiva = false;
+    this._revelaFechar = null;
+    this.gameOverDrawn = false;
+
     textoHUD = this.add.text(10, 10, '', { font: '22px Arial', fill: '#fff', fontStyle: 'bold' });
-    textoCentro = this.add.text(W / 2, H / 2, '', { font: '45px Arial', fill: '#00ff00', fontStyle: 'bold', align: 'center' }).setOrigin(0.5);
+    textoCentro = this.add.text(W / 2, H / 2, '', {
+        fontFamily: '"IM Fell English", Georgia, serif',
+        fontSize: '30px', fontStyle: 'italic',
+        color: '#1e0a00',
+        stroke: '#7a4c00', strokeThickness: 1,
+        align: 'center', lineSpacing: 10,
+        padding: { x: 44, y: 26 },
+        backgroundColor: '#c8a040'
+    }).setOrigin(0.5).setVisible(false);
 
     this.add.text(10, 60, '⚡ ENERGIA', { font: '13px Arial', fill: '#ffdd55', fontStyle: 'bold' });
     barraEstamina = this.add.graphics();
@@ -619,21 +650,31 @@ function create() {
     textoRelogio = this.add.text(cx, cy + 10, '100', { font: 'bold 26px Arial', fill: '#f0e0b0', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5).setDepth(3);
 
     grupoObjetos = this.physics.add.group();
-    linhaCorda = this.add.graphics();
+    linhaCorda = this.add.graphics().setDepth(4);
 
-    gancho = this.physics.add.sprite(W / 2, 170, 'spr_gancho');
-    gancho.setDisplaySize(64, 80); // mantém a proporção da garra (919x1152)
-    gancho.setDepth(2);            // garra acima dos objetos soltos no cenário
+    // Tamanho do personagem e âncora proporcionais à largura do jogo (design base: W=1366)
+    const gameScale0 = W / 1366;
+    const charW0 = Math.round(180 * gameScale0);
+    const charH0 = Math.round(120 * gameScale0);
+    const charY0 = 110;
+    const charTopDesign = 50; // charY - 60 na escala base
 
-    // Ajusta a hitbox da garra para pegar objetos apenas com a ponta (reduz tamanho para 40% da largura e 30% da altura)
+    const ancorasDesign = { 1: [24, 90], 2: [18, 76], 3: [30, 74] };
+    const [adx0, ady0] = ancorasDesign[cenarioAtual] || [24, 90];
+    this.ancoraX = W / 2 + Math.round(adx0 * gameScale0);
+    this.ancoraY = Math.round((charY0 - charH0 / 2) + (ady0 - charTopDesign) * gameScale0);
+
+    gancho = this.physics.add.sprite(this.ancoraX, this.ancoraY, 'spr_gancho');
+    gancho.setDisplaySize(Math.round(64 * gameScale0), Math.round(80 * gameScale0));
+    gancho.setDepth(4);
+
+    // Ajusta a hitbox da garra para pegar objetos apenas com a ponta
     gancho.body.setSize(gancho.width * 0.4, gancho.height * 0.3);
     gancho.body.setOffset(gancho.width * 0.3, gancho.height * 0.65);
 
-    const arqueologoSizes = { 1: [105, 115], 2: [210, 115], 3: [165, 115] };
-    const [aw0, ah0] = arqueologoSizes[cenarioAtual] || [165, 115];
-    this.arqueologoSpr = this.add.image(W / 2, 110, `spr_arqueologo_${cenarioAtual}`);
-    this.arqueologoSpr.setDisplaySize(aw0, ah0);
-    this.arqueologoSpr.setDepth(3);
+    this.arqueologoSpr = this.add.image(W / 2, charY0, `spr_arqueologo_${cenarioAtual}`);
+    this.arqueologoSpr.setDisplaySize(charW0, charH0);
+    this.arqueologoSpr.setDepth(1);
 
     this.physics.add.overlap(gancho, grupoObjetos, pegarObjeto, null, this);
     this.input.on('pointerdown', (pointer) => acaoPrincipal.call(this, pointer), this);
@@ -658,7 +699,7 @@ function acharPosicaoValida(raioNovoItem, larguraTela) {
     let maxTentativas = 100;
     for (let t = 0; t < maxTentativas; t++) {
         let x = Phaser.Math.Between(50, larguraTela - 50);
-        let y = Phaser.Math.Between(250, 700);
+        let y = Phaser.Math.Between(280, 700);
         let sobreposto = false;
 
         for (let pos of posicoesOcupadas) {
@@ -688,8 +729,6 @@ function montarFase() {
 
     grupoObjetos.clear(true, true);
     posicoesOcupadas = [];
-    moedasColetadas = 0;
-    tempoRestante = 100;
     estamina = 150;
     fragmentoRevelado = false;
     jogoVencido = false;
@@ -702,13 +741,16 @@ function montarFase() {
     balancandoParaDireita = true;
     objetoPuxado = null;
 
-    if (musicaFase) musicaFase.stop();
+    try { if (musicaFase) { musicaFase.stop(); musicaFase.destroy(); } } catch (e) {}
+    musicaFase = null;
     let chaveMusica = 'musica_cenario_1';
     if (cenarioAtual === 2) chaveMusica = 'musica_cenario_2';
     if (cenarioAtual === 3) chaveMusica = 'musica_cenario_3';
 
-    musicaFase = this.sound.add(chaveMusica);
-    musicaFase.play({ loop: true, volume: volumeGlobal });
+    try {
+        musicaFase = this.sound.add(chaveMusica);
+        musicaFase.play({ loop: true, volume: volumeGlobal });
+    } catch (e) { musicaFase = null; }
 
     let degrauDificuldade = ((cenarioAtual - 1) * 3) + (faseNoCenario - 1);
     velocidadeBalanço = 1.0 + (degrauDificuldade * 0.15);
@@ -733,17 +775,24 @@ function montarFase() {
         this.cameras.main.setBackgroundColor('#b71c1c');
     }
 
+    const W = this.cameras.main.width;
+    const gameScale = W / 1366;
+    const charW = Math.round(180 * gameScale);
+    const charH = Math.round(120 * gameScale);
+    const charTopDesign = 50;
+
     if (this.arqueologoSpr) {
-        const arqueologoSizes = { 1: [105, 115], 2: [210, 115], 3: [165, 115] };
-        const [aw, ah] = arqueologoSizes[cenarioAtual] || [165, 115];
         this.arqueologoSpr.setTexture(`spr_arqueologo_${cenarioAtual}`);
-        this.arqueologoSpr.setDisplaySize(aw, ah);
+        this.arqueologoSpr.setDisplaySize(charW, charH);
     }
 
-    atualizarHUD();
-    textoCentro.setText('');
+    const ancorasDesign = { 1: [24, 90], 2: [18, 76], 3: [30, 74] };
+    const [ax, ay] = ancorasDesign[cenarioAtual] || [24, 90];
+    this.ancoraX = W / 2 + Math.round(ax * gameScale);
+    this.ancoraY = Math.round((110 - charH / 2) + (ay - charTopDesign) * gameScale);
 
-    const W = this.cameras.main.width;
+    atualizarHUD();
+    textoCentro.setText('').setVisible(false);
     const cfgCenario = [
         { m5: 2, m3: 6, m1: 8, pGrande: 2, pPequena: 4 },
         { m5: 3, m3: 7, m1: 9, pGrande: 3, pPequena: 5 },
@@ -811,8 +860,8 @@ function montarFase() {
 }
 
 function spawnarFragmento() {
-    textoCentro.setText('ARTEFATO DETECTADO!\nResgate o fragmento antes que o tempo acabe!');
-    textoCentro.setColor('#00ffff');
+    textoCentro.setText('⚑  ARTEFATO LOCALIZADO  ⚑\nResgate o fragmento antes que o tempo expire!');
+    textoCentro.setColor('#1e0a00').setVisible(true);
 
     this.time.delayedCall(2500, () => {
         if (!esperandoProximaFase && !jogoAcabou) textoCentro.setText('');
@@ -841,8 +890,8 @@ function diminuirTempo() {
 
     if (tempoRestante <= 0) {
         jogoAcabou = true;
-        textoCentro.setText('FIM DA EXPEDIÇÃO!\nO tempo de escavação esgotou.');
-        textoCentro.setColor('#ff0000');
+        textoCentro.setText('FIM DA EXPEDIÇÃO\nO tempo de escavação esgotou.');
+        textoCentro.setColor('#5a0000').setVisible(true);
         limparSave();
         mostrarControlesGameOver.call(this);
     }
@@ -866,6 +915,8 @@ function mostrarControlesGameOver() {
 
 function reiniciarFase() {
     if (!jogoAcabou) return;
+    moedasColetadas = 0;
+    tempoRestante = 100;
     montarFase.call(this);
 }
 
@@ -875,15 +926,15 @@ function acaoPrincipal(pointer) {
         reiniciarFase.call(this);
         return;
     }
-    if (pointer && this.pauseZone) {
-        let bounds = this.pauseZone.getBounds();
-        if (pointer.x >= bounds.x && pointer.x <= bounds.right && pointer.y >= bounds.y && pointer.y <= bounds.bottom) {
-            return;
-        }
+    if (pointer && this.botaoPausaBg) {
+        const bounds = this.botaoPausaBg.getBounds();
+        if (Phaser.Geom.Rectangle.Contains(bounds, pointer.x, pointer.y)) return;
     }
 
     if (esperandoProximaFase) {
         esperandoProximaFase = false;
+        moedasColetadas = 0;
+        tempoRestante = 100;
         montarFase.call(this);
     } else if (estadoGancho === 'BALANCANDO') {
         estadoGancho = 'DESCENDO';
@@ -928,7 +979,7 @@ function update() {
     linhaCorda.clear();
     linhaCorda.lineStyle(3, 0xaaaaaa, 1);
     linhaCorda.beginPath();
-    linhaCorda.moveTo(centroX, 170);
+    linhaCorda.moveTo(this.ancoraX, this.ancoraY);
     linhaCorda.lineTo(gancho.x, gancho.y);
     linhaCorda.strokePath();
 
@@ -991,7 +1042,7 @@ function update() {
     }
 
     if (estadoGancho === 'BALANCANDO') {
-        if (apertouBotao) acaoPrincipal.call(this);
+        if (apertouBotao) acaoPrincipal.call(this, this.input.activePointer);
 
         if (balancandoParaDireita) {
             anguloGancho += velocidadeBalanço;
@@ -1003,8 +1054,8 @@ function update() {
 
         let tamanhoDaCorda = 135;
 
-        gancho.x = centroX + Math.sin(radianos) * tamanhoDaCorda;
-        gancho.y = 170 + Math.cos(radianos) * tamanhoDaCorda;
+        gancho.x = this.ancoraX + Math.sin(radianos) * tamanhoDaCorda;
+        gancho.y = this.ancoraY + Math.cos(radianos) * tamanhoDaCorda;
         gancho.angle = -anguloGancho;
     }
     else if (estadoGancho === 'DESCENDO') {
@@ -1029,7 +1080,7 @@ function update() {
         gancho.x -= Math.sin(radianos) * velocidadeAtual;
         gancho.y -= Math.cos(radianos) * velocidadeAtual;
 
-        if (gancho.y <= 220) {
+        if (gancho.y <= this.arqueologoSpr.y + this.arqueologoSpr.displayHeight / 2) {
             estadoGancho = 'BALANCANDO';
             anguloGancho = Phaser.Math.Between(-55, 55);
             balancandoParaDireita = anguloGancho < 0 ? true : Phaser.Math.Between(0, 1) === 0;
@@ -1061,6 +1112,8 @@ function update() {
                         cenarioAtual++;
                         fragmentosAtuais = 0;
                         faseNoCenario = 1;
+                        moedasColetadas = 0;
+                        tempoRestante = 100;
                         salvarJogo();
 
                         if (reliquiasCompletas >= 3) {
@@ -1072,16 +1125,18 @@ function update() {
                             });
                         } else {
                             mostrarCenarioCompleto(this, cenarioCaptura, () => {
-                                textoCentro.setText(`Fase ${cenarioAtual} desbloqueada!\nClique para iniciar a próxima escavação.`);
-                                textoCentro.setColor('#00ff00');
+                                textoCentro.setText(`Novo sítio desbloqueado!\nClique para iniciar a próxima escavação.`);
+                                textoCentro.setColor('#1e0a00').setVisible(true);
                                 esperandoProximaFase = true;
                             });
                         }
                     } else {
+                        moedasColetadas = 0;
+                        tempoRestante = 100;
                         salvarJogo();
                         mostrarRevela(this, cenarioCaptura, fragsCapturados, () => {
-                            textoCentro.setText(`Peça ${fragsCapturados}/3 recuperada!\nClique para continuar a escavação.`);
-                            textoCentro.setColor('#00ff00');
+                            textoCentro.setText(`Fragmento ${fragsCapturados}/3 catalogado\nClique para continuar a escavação.`);
+                            textoCentro.setColor('#1e0a00').setVisible(true);
                             esperandoProximaFase = true;
                         });
                     }
@@ -1118,44 +1173,87 @@ function mostrarRevela(scene, cenario, numFragmentos, aoFechar) {
     const W = scene.cameras.main.width;
     const H = scene.cameras.main.height;
     const relicKey = ['mascara', 'santo', 'tigre'][cenario - 1] || 'mascara';
-    const subtitulos = ['', 'O quebra-cabeças começa a tomar forma...', 'Quase lá! Um fragmento ainda está escondido.'];
+    const subtitulos = [
+        '',
+        'O primeiro fragmento foi catalogado. A busca continua...',
+        'Dois fragmentos em custódia. Falta apenas um!'
+    ];
 
     scene._revelaAtiva = true;
     const obj = [];
 
-    obj.push(scene.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.75).setDepth(50));
+    obj.push(scene.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.82).setDepth(50));
 
+    // Sombra do painel
+    let sombra = scene.add.graphics().setDepth(50);
+    sombra.fillStyle(0x000000, 0.5);
+    sombra.fillRoundedRect(W / 2 - 274, 106, 560, 530, 12);
+    obj.push(sombra);
+
+    // Painel principal
     let panel = scene.add.graphics().setDepth(51);
-    panel.fillStyle(0x120f09, 0.97);
-    panel.fillRoundedRect(W / 2 - 280, 100, 560, 530, 16);
+    panel.fillStyle(0x0d0600, 1);
+    panel.fillRoundedRect(W / 2 - 280, 100, 560, 530, 14);
+    panel.fillStyle(0x1c0d02, 0.4);
+    panel.fillRoundedRect(W / 2 - 272, 108, 544, 514, 10);
     panel.lineStyle(3, 0xd4af37, 1);
-    panel.strokeRoundedRect(W / 2 - 280, 100, 560, 530, 16);
+    panel.strokeRoundedRect(W / 2 - 280, 100, 560, 530, 14);
+    panel.lineStyle(1, 0xd4af37, 0.35);
+    panel.strokeRoundedRect(W / 2 - 272, 108, 544, 514, 10);
     obj.push(panel);
 
-    obj.push(scene.add.text(W / 2, 148, `PEÇA ${numFragmentos}/3 RECUPERADA!`, {
-        fontFamily: 'Arial', fontSize: '32px', fontStyle: 'bold',
-        color: '#00ffff', stroke: '#000000', strokeThickness: 4, align: 'center'
+    // Cabeçalho museológico
+    obj.push(scene.add.text(W / 2, 122, '— MUSEU HISTÓRICO DE SÃO JOSÉ —', {
+        fontFamily: 'Arial', fontSize: '10px', color: '#8b6914', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(52));
 
-    obj.push(scene.add.text(W / 2, 192, subtitulos[numFragmentos] || '', {
-        fontFamily: 'Arial', fontSize: '20px', color: '#d4af37', align: 'center'
+    let sep1 = scene.add.graphics().setDepth(52);
+    sep1.lineStyle(1, 0xd4af37, 0.5);
+    sep1.lineBetween(W / 2 - 240, 135, W / 2 + 240, 135);
+    obj.push(sep1);
+
+    // Título principal
+    obj.push(scene.add.text(W / 2, 162, `FRAGMENTO  ${numFragmentos} / 3  RECUPERADO`, {
+        fontFamily: '"Cinzel", "Georgia", serif', fontSize: '26px', fontStyle: 'bold',
+        color: '#d4af37', stroke: '#0d0600', strokeThickness: 4, align: 'center'
     }).setOrigin(0.5).setDepth(52));
 
+    // Subtítulo
+    if (subtitulos[numFragmentos]) {
+        obj.push(scene.add.text(W / 2, 196, subtitulos[numFragmentos], {
+            fontFamily: 'Arial', fontSize: '14px', fontStyle: 'italic',
+            color: '#bf8b6e', align: 'center'
+        }).setOrigin(0.5).setDepth(52));
+    }
+
+    let sep2 = scene.add.graphics().setDepth(52);
+    sep2.lineStyle(1, 0xd4af37, 0.3);
+    sep2.lineBetween(W / 2 - 200, 213, W / 2 + 200, 213);
+    obj.push(sep2);
+
+    // Fragmentos
     for (let j = 1; j <= 3; j++) {
         const tk = `frag_${relicKey}_${j}`;
         const src = scene.textures.get(tk).getSourceImage();
         const scale = Math.min(200 / src.width, 110 / src.height);
-        let piece = scene.add.image(W / 2, 285 + (j - 1) * 115, tk).setDepth(52);
+        let piece = scene.add.image(W / 2, 290 + (j - 1) * 115, tk).setDepth(52);
         piece.setDisplaySize(Math.round(src.width * scale), Math.round(src.height * scale));
-        if (j > numFragmentos) { piece.setTint(0x222222); piece.setAlpha(0.25); }
+        if (j > numFragmentos) { piece.setTint(0x111111); piece.setAlpha(0.18); }
         obj.push(piece);
     }
 
-    let cont = scene.add.text(W / 2, 592, 'Clique ou ESPAÇO para continuar a escavação', {
-        fontFamily: 'Arial', fontSize: '18px', color: '#ffffff', align: 'center'
+    let sep3 = scene.add.graphics().setDepth(52);
+    sep3.lineStyle(1, 0xd4af37, 0.3);
+    sep3.lineBetween(W / 2 - 200, 572, W / 2 + 200, 572);
+    obj.push(sep3);
+
+    // Texto de continuação
+    let cont = scene.add.text(W / 2, 592, 'CLIQUE OU ESPAÇO PARA CONTINUAR A ESCAVAÇÃO', {
+        fontFamily: 'Arial', fontSize: '11px', fontStyle: 'bold',
+        color: '#8b6914', align: 'center'
     }).setOrigin(0.5).setDepth(52);
     obj.push(cont);
-    scene.tweens.add({ targets: cont, alpha: 0.2, duration: 500, yoyo: true, repeat: -1 });
+    scene.tweens.add({ targets: cont, alpha: 0.25, duration: 700, yoyo: true, repeat: -1 });
 
     const fechar = () => {
         obj.forEach(o => { if (o && o.active) o.destroy(); });
@@ -1176,51 +1274,79 @@ function mostrarCenarioCompleto(scene, cenario, aoFechar) {
     const exibKeys = ['exib_mascara', 'exib_santo', 'exib_tigre'];
     const nomes = ['Máscara Ritual', 'Imagem Sacra', 'Tigre de Bronze'];
     const msgs = [
-        'Este artefato sagrado encontrou seu lar\nno Museu Histórico de São José!',
-        'Esta relíquia volta a ocupar\nseu lugar de honra no acervo do museu!',
-        'Esta peça única completa\na coleção arqueológica do museu!'
+        'Este artefato sagrado encontrou seu lar\nno Museu Histórico de São José.',
+        'Esta relíquia volta a ocupar\nseu lugar de honra no acervo do museu.',
+        'Esta peça única completa\na coleção arqueológica do museu.'
     ];
     const idx = (cenario - 1);
 
     scene._revelaAtiva = true;
     const obj = [];
 
-    obj.push(scene.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.88).setDepth(50));
+    obj.push(scene.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.82).setDepth(50));
+
+    let sombra = scene.add.graphics().setDepth(50);
+    sombra.fillStyle(0x000000, 0.5);
+    sombra.fillRoundedRect(W / 2 - 304, 56, 620, 660, 12);
+    obj.push(sombra);
 
     let panel = scene.add.graphics().setDepth(51);
-    panel.fillStyle(0x120f09, 0.97);
-    panel.fillRoundedRect(W / 2 - 310, 50, 620, 660, 18);
-    panel.lineStyle(4, 0xffd700, 1);
-    panel.strokeRoundedRect(W / 2 - 310, 50, 620, 660, 18);
+    panel.fillStyle(0x0d0600, 1);
+    panel.fillRoundedRect(W / 2 - 310, 50, 620, 660, 14);
+    panel.fillStyle(0x1c0d02, 0.4);
+    panel.fillRoundedRect(W / 2 - 302, 58, 604, 644, 10);
+    panel.lineStyle(3, 0xd4af37, 1);
+    panel.strokeRoundedRect(W / 2 - 310, 50, 620, 660, 14);
+    panel.lineStyle(1, 0xd4af37, 0.35);
+    panel.strokeRoundedRect(W / 2 - 302, 58, 604, 644, 10);
     obj.push(panel);
 
-    obj.push(scene.add.text(W / 2, 100, 'OBJETO RESTAURADO!', {
-        fontFamily: 'Arial', fontSize: '38px', fontStyle: 'bold',
-        color: '#ffd700', stroke: '#5c3a00', strokeThickness: 5, align: 'center'
+    obj.push(scene.add.text(W / 2, 72, '— MUSEU HISTÓRICO DE SÃO JOSÉ —', {
+        fontFamily: 'Arial', fontSize: '10px', color: '#8b6914', fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(52));
+    let s1 = scene.add.graphics().setDepth(52);
+    s1.lineStyle(1, 0xd4af37, 0.5); s1.lineBetween(W / 2 - 240, 85, W / 2 + 240, 85);
+    obj.push(s1);
+
+    obj.push(scene.add.text(W / 2, 112, 'RELÍQUIA RESTAURADA', {
+        fontFamily: '"Cinzel", "Georgia", serif', fontSize: '30px', fontStyle: 'bold',
+        color: '#d4af37', stroke: '#0d0600', strokeThickness: 4, align: 'center'
     }).setOrigin(0.5).setDepth(52));
 
-    obj.push(scene.add.text(W / 2, 148, nomes[idx] || '', {
-        fontFamily: 'Arial', fontSize: '24px', fontStyle: 'bold italic',
-        color: '#ffffff', stroke: '#000000', strokeThickness: 3, align: 'center'
+    obj.push(scene.add.text(W / 2, 150, nomes[idx] || '', {
+        fontFamily: '"IM Fell English", Georgia, serif', fontSize: '20px', fontStyle: 'italic',
+        color: '#bf8b6e', align: 'center'
     }).setOrigin(0.5).setDepth(52));
+
+    let s2 = scene.add.graphics().setDepth(52);
+    s2.lineStyle(1, 0xd4af37, 0.3); s2.lineBetween(W / 2 - 200, 168, W / 2 + 200, 168);
+    obj.push(s2);
 
     const exibKey = exibKeys[idx] || exibKeys[0];
     const exibSrc = scene.textures.get(exibKey).getSourceImage();
-    const exibScale = Math.min(500 / exibSrc.width, 420 / exibSrc.height);
-    let img = scene.add.image(W / 2, 390, exibKey).setDepth(52);
+    const exibScale = Math.min(460 / exibSrc.width, 390 / exibSrc.height);
+    let img = scene.add.image(W / 2, 385, exibKey).setDepth(52);
     img.setDisplaySize(Math.round(exibSrc.width * exibScale), Math.round(exibSrc.height * exibScale));
     obj.push(img);
 
-    obj.push(scene.add.text(W / 2, 604, msgs[idx] || '', {
-        fontFamily: 'Arial', fontSize: '20px', color: '#d4af37',
-        align: 'center', lineSpacing: 4
+    let s3 = scene.add.graphics().setDepth(52);
+    s3.lineStyle(1, 0xd4af37, 0.3); s3.lineBetween(W / 2 - 200, 590, W / 2 + 200, 590);
+    obj.push(s3);
+
+    obj.push(scene.add.text(W / 2, 612, msgs[idx] || '', {
+        fontFamily: '"IM Fell English", Georgia, serif', fontSize: '16px', fontStyle: 'italic',
+        color: '#bf8b6e', align: 'center', lineSpacing: 4
     }).setOrigin(0.5).setDepth(52));
 
-    let cont = scene.add.text(W / 2, 665, 'Clique ou ESPAÇO para continuar', {
-        fontFamily: 'Arial', fontSize: '18px', color: '#ffffff', align: 'center'
+    let s4 = scene.add.graphics().setDepth(52);
+    s4.lineStyle(1, 0xd4af37, 0.3); s4.lineBetween(W / 2 - 200, 648, W / 2 + 200, 648);
+    obj.push(s4);
+
+    let cont = scene.add.text(W / 2, 666, 'CLIQUE OU ESPAÇO PARA CONTINUAR', {
+        fontFamily: 'Arial', fontSize: '11px', fontStyle: 'bold', color: '#8b6914', align: 'center'
     }).setOrigin(0.5).setDepth(52);
     obj.push(cont);
-    scene.tweens.add({ targets: cont, alpha: 0.2, duration: 500, yoyo: true, repeat: -1 });
+    scene.tweens.add({ targets: cont, alpha: 0.25, duration: 700, yoyo: true, repeat: -1 });
 
     const fechar = () => {
         obj.forEach(o => { if (o && o.active) o.destroy(); });
@@ -1242,19 +1368,44 @@ function mostrarVitoriaFinal(scene, aoFechar) {
     scene._revelaAtiva = true;
     const obj = [];
 
-    obj.push(scene.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.92).setDepth(50));
+    obj.push(scene.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.88).setDepth(50));
+
+    let sombra = scene.add.graphics().setDepth(50);
+    sombra.fillStyle(0x000000, 0.5);
+    sombra.fillRoundedRect(W / 2 - 484, 36, 980, 710, 12);
+    obj.push(sombra);
 
     let panel = scene.add.graphics().setDepth(51);
-    panel.fillStyle(0x120f09, 0.98);
-    panel.fillRoundedRect(W / 2 - 490, 30, 980, 710, 20);
-    panel.lineStyle(5, 0xffd700, 1);
-    panel.strokeRoundedRect(W / 2 - 490, 30, 980, 710, 20);
+    panel.fillStyle(0x0d0600, 1);
+    panel.fillRoundedRect(W / 2 - 490, 30, 980, 710, 14);
+    panel.fillStyle(0x1c0d02, 0.4);
+    panel.fillRoundedRect(W / 2 - 482, 38, 964, 694, 10);
+    panel.lineStyle(3, 0xd4af37, 1);
+    panel.strokeRoundedRect(W / 2 - 490, 30, 980, 710, 14);
+    panel.lineStyle(1, 0xd4af37, 0.35);
+    panel.strokeRoundedRect(W / 2 - 482, 38, 964, 694, 10);
     obj.push(panel);
 
-    obj.push(scene.add.text(W / 2, 88, 'MISSÃO ARQUEOLÓGICA CUMPRIDA!', {
-        fontFamily: 'Arial', fontSize: '38px', fontStyle: 'bold',
-        color: '#ffd700', stroke: '#5c3a00', strokeThickness: 6, align: 'center'
+    obj.push(scene.add.text(W / 2, 52, '— MUSEU HISTÓRICO DE SÃO JOSÉ —', {
+        fontFamily: 'Arial', fontSize: '10px', color: '#8b6914', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(52));
+    let s1 = scene.add.graphics().setDepth(52);
+    s1.lineStyle(1, 0xd4af37, 0.5); s1.lineBetween(W / 2 - 420, 65, W / 2 + 420, 65);
+    obj.push(s1);
+
+    obj.push(scene.add.text(W / 2, 92, 'MISSÃO ARQUEOLÓGICA CUMPRIDA', {
+        fontFamily: '"Cinzel", "Georgia", serif', fontSize: '32px', fontStyle: 'bold',
+        color: '#d4af37', stroke: '#0d0600', strokeThickness: 4, align: 'center'
+    }).setOrigin(0.5).setDepth(52));
+
+    obj.push(scene.add.text(W / 2, 130, 'As três relíquias históricas foram resgatadas e catalogadas.', {
+        fontFamily: '"IM Fell English", Georgia, serif', fontSize: '15px', fontStyle: 'italic',
+        color: '#bf8b6e', align: 'center'
+    }).setOrigin(0.5).setDepth(52));
+
+    let s2 = scene.add.graphics().setDepth(52);
+    s2.lineStyle(1, 0xd4af37, 0.3); s2.lineBetween(W / 2 - 380, 148, W / 2 + 380, 148);
+    obj.push(s2);
 
     const vitoriaExibKeys = ['exib_mascara', 'exib_santo', 'exib_tigre'];
     const nomes = ['Máscara Ritual', 'Imagem Sacra', 'Tigre de Bronze'];
@@ -1263,25 +1414,34 @@ function mostrarVitoriaFinal(scene, aoFechar) {
     for (let i = 0; i < 3; i++) {
         let ix = startX + i * 310;
         const src = scene.textures.get(vitoriaExibKeys[i]).getSourceImage();
-        const scale = Math.min(280 / src.width, 350 / src.height);
-        let img = scene.add.image(ix, 330, vitoriaExibKeys[i]).setDepth(52);
+        const scale = Math.min(260 / src.width, 340 / src.height);
+        let img = scene.add.image(ix, 340, vitoriaExibKeys[i]).setDepth(52);
         img.setDisplaySize(Math.round(src.width * scale), Math.round(src.height * scale));
         obj.push(img);
-        obj.push(scene.add.text(ix, 525, nomes[i], {
-            fontFamily: 'Arial', fontSize: '18px', fontStyle: 'bold', color: '#d4af37', align: 'center'
+        obj.push(scene.add.text(ix, 528, nomes[i], {
+            fontFamily: '"Cinzel", serif', fontSize: '15px', fontStyle: 'bold',
+            color: '#d4af37', align: 'center'
         }).setOrigin(0.5).setDepth(52));
     }
 
-    obj.push(scene.add.text(W / 2, 590, 'Três artefatos históricos foram resgatados e agora fazem\nparte permanente do acervo do Museu Histórico de São José.\nObrigado por preservar nossa história!', {
-        fontFamily: 'Arial', fontSize: '19px', color: '#ffffff',
-        align: 'center', lineSpacing: 4
+    let s3 = scene.add.graphics().setDepth(52);
+    s3.lineStyle(1, 0xd4af37, 0.3); s3.lineBetween(W / 2 - 380, 556, W / 2 + 380, 556);
+    obj.push(s3);
+
+    obj.push(scene.add.text(W / 2, 595, 'Estes artefatos agora fazem parte permanente do acervo\ndo Museu Histórico de São José. Obrigado por preservar nossa história!', {
+        fontFamily: '"IM Fell English", Georgia, serif', fontSize: '17px', fontStyle: 'italic',
+        color: '#bf8b6e', align: 'center', lineSpacing: 6
     }).setOrigin(0.5).setDepth(52));
 
-    let cont = scene.add.text(W / 2, 690, 'Clique, ESPAÇO ou M para retornar ao Museu Histórico de São José', {
-        fontFamily: 'Arial', fontSize: '17px', color: '#ffffff', align: 'center'
+    let s4 = scene.add.graphics().setDepth(52);
+    s4.lineStyle(1, 0xd4af37, 0.3); s4.lineBetween(W / 2 - 380, 652, W / 2 + 380, 652);
+    obj.push(s4);
+
+    let cont = scene.add.text(W / 2, 670, 'CLIQUE, ESPAÇO OU M PARA RETORNAR AO MUSEU', {
+        fontFamily: 'Arial', fontSize: '11px', fontStyle: 'bold', color: '#8b6914', align: 'center'
     }).setOrigin(0.5).setDepth(52);
     obj.push(cont);
-    scene.tweens.add({ targets: cont, alpha: 0.2, duration: 500, yoyo: true, repeat: -1 });
+    scene.tweens.add({ targets: cont, alpha: 0.25, duration: 700, yoyo: true, repeat: -1 });
 
     const fechar = () => {
         obj.forEach(o => { if (o && o.active) o.destroy(); });
@@ -1299,7 +1459,7 @@ function pegarObjeto(ganchoObjeto, objetoAtingido) {
     if (estadoGancho === 'DESCENDO') {
         estadoGancho = 'SUBINDO';
         objetoPuxado = objetoAtingido;
-        objetoPuxado.setDepth(3); // objeto agarrado sobrepõe a garra (depth 2), escondendo-a atrás
+        objetoPuxado.setDepth(5);
         if (objetoAtingido.tipo === 'pedra_pesada') {
             let scene = ganchoObjeto.scene;
             mostrarTextoFlutuante(scene, ganchoObjeto.x, ganchoObjeto.y, 'MUITO PESADA!', '#ff4444');
@@ -1331,4 +1491,4 @@ const config = {
     scene: [MenuScene, InventoryScene, TutorialScene, OptionsScene, GameScene, PauseScene]
 };
 
-const game = new Phaser.Game(config);
+new Phaser.Game(config);
