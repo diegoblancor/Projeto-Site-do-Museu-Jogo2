@@ -28,7 +28,8 @@ let estamina = 150;
 const estaminaMaxima = 150;
 
 let graficoTempoPizza;
-let textoHUD, textoCentro, barraEstamina, labelBoost, textoRelogio;
+let textoHUD, textoCentro, textoCentroBg, barraEstamina, labelBoost, boostPanel, textoRelogio, clockNeedle;
+let hudBarY = 92;
 let teclaEspaco;
 
 let gameOverRetangulo = null, gameOverTexto = null;
@@ -107,6 +108,7 @@ class MenuScene extends Phaser.Scene {
 
     preload() {
         this.load.image('fundo_capa', 'img/sprites/cenarios/capa.png');
+        this.load.image('pergaminho', 'img/sprites/cenarios/pergaminho.png');
         this.load.audio('musica_cenario_1', 'audio/primeira-musica.mp3');
         this.load.audio('musica_cenario_2', 'audio/segunda-musica.mp3');
         this.load.audio('musica_cenario_3', 'audio/terceira-musica.mp3');
@@ -217,15 +219,15 @@ class InventoryScene extends Phaser.Scene {
     create() {
         const W = this.cameras.main.width, H = this.cameras.main.height;
 
-        this.add.rectangle(0, 0, W, H / 2, 0x1a0800).setOrigin(0, 0);
-        this.add.rectangle(0, H / 2, W, H / 2, 0x3e2000).setOrigin(0, 0);
+        this.add.rectangle(0, 0, W, H / 2, 0x2d0a0a).setOrigin(0, 0);
+        this.add.rectangle(0, H / 2, W, H / 2, 0x4a1010).setOrigin(0, 0);
 
         let moldura = this.add.graphics();
         moldura.lineStyle(3, 0xd4af37, 0.5);
         moldura.strokeRect(28, 28, W - 56, H - 56);
 
         this.add.text(W / 2, 100, 'SALA DE EXPOSIÇÃO', {
-            fontFamily: 'Arial', fontSize: '50px', fontStyle: 'bold', color: '#d4af37', stroke: '#5c3a00', strokeThickness: 6
+            fontFamily: 'Arial', fontSize: '50px', fontStyle: 'bold', color: '#d4af37', stroke: '#2d0a0a', strokeThickness: 6
         }).setOrigin(0.5);
 
         let reliquiasSalvas = 0, fragmentosSalvos = 0;
@@ -246,7 +248,7 @@ class InventoryScene extends Phaser.Scene {
             let py = 330;
 
             let frame = this.add.graphics();
-            frame.fillStyle(0x1a0d00, 0.85);
+            frame.fillStyle(0x1a0505, 0.9);
             frame.fillRoundedRect(px - 100, py - 120, 200, 250, 10);
             frame.lineStyle(3, 0xd4af37, 0.9);
             frame.strokeRoundedRect(px - 100, py - 120, 200, 250, 10);
@@ -255,30 +257,33 @@ class InventoryScene extends Phaser.Scene {
             const rKey = relicKeys[i];
 
             if (fragsDestaReliquia === 3) {
-                let fullImg = this.add.image(px, py - 10, `frag_${rKey}_full`);
-                fullImg.setDisplaySize(170, 190);
+                let fullImg = this.add.image(px, py - 20, `frag_${rKey}_full`);
+                const fsrc = this.textures.get(`frag_${rKey}_full`).getSourceImage();
+                const fsc = Math.min(180 / fsrc.width, 210 / fsrc.height);
+                fullImg.setDisplaySize(Math.round(fsrc.width * fsc), Math.round(fsrc.height * fsc));
                 this.add.text(px, py + 110, nomesReliquias[i], {
-                    fontFamily: 'Arial', fontSize: '18px', fontStyle: 'bold', color: '#00ff00', align: 'center'
+                    fontFamily: 'Arial', fontSize: '16px', fontStyle: 'bold', color: '#f5e6c8', align: 'center'
                 }).setOrigin(0.5);
             } else if (fragsDestaReliquia > 0) {
+                const slotH = 72, maxW = 180;
                 for (let j = 1; j <= 3; j++) {
-                    let pieceY = py - 70 + (j - 1) * 65;
-                    let piece = this.add.image(px, pieceY, `frag_${rKey}_${j}`);
-                    piece.setDisplaySize(165, 55);
-                    if (j > fragsDestaReliquia) {
-                        piece.setTint(0x111111);
-                        piece.setAlpha(0.3);
-                    }
+                    const tk = `frag_${rKey}_${j}`;
+                    let pieceY = py - 95 + (j - 1) * slotH + slotH / 2;
+                    let piece = this.add.image(px, pieceY, tk);
+                    const src = this.textures.get(tk).getSourceImage();
+                    const sc = Math.min(maxW / src.width, (slotH - 8) / src.height);
+                    piece.setDisplaySize(Math.round(src.width * sc), Math.round(src.height * sc));
+                    if (j > fragsDestaReliquia) { piece.setTint(0x111111); piece.setAlpha(0.3); }
                 }
                 this.add.text(px, py + 110, `Restaurando...\n(${fragsDestaReliquia}/3)`, {
-                    fontFamily: 'Arial', fontSize: '16px', fontStyle: 'bold', color: '#ffd700', align: 'center'
+                    fontFamily: 'Arial', fontSize: '16px', fontStyle: 'bold', color: '#d4af37', align: 'center'
                 }).setOrigin(0.5);
             } else {
                 this.add.text(px, py - 10, '?', {
-                    fontFamily: 'Arial', fontSize: '60px', fontStyle: 'bold', color: '#443322'
+                    fontFamily: 'Arial', fontSize: '60px', fontStyle: 'bold', color: '#7a3a3a'
                 }).setOrigin(0.5);
                 this.add.text(px, py + 110, 'Bloqueado', {
-                    fontFamily: 'Arial', fontSize: '18px', fontStyle: 'bold', color: '#443322', align: 'center'
+                    fontFamily: 'Arial', fontSize: '18px', fontStyle: 'bold', color: '#7a3a3a', align: 'center'
                 }).setOrigin(0.5);
             }
         }
@@ -303,49 +308,208 @@ class InventoryScene extends Phaser.Scene {
 class TutorialScene extends Phaser.Scene {
     constructor() { super({ key: 'TutorialScene' }); }
 
+    preload() {
+        const spr = [
+            ['spr_gancho',        'img/sprites/cenarios/garra_fechada.png'],
+            ['spr_moeda_prata',   'img/sprites/cenarios/moeda_1000.png'],
+            ['spr_moeda_bronze',  'img/sprites/cenarios/moeda_500.png'],
+            ['spr_pedra_grande',  'img/sprites/cenarios/pedra_grande.png'],
+            ['spr_pedra_pequena', 'img/sprites/cenarios/pedra_pequena.png'],
+            ['spr_concha_grande', 'img/sprites/cenarios/concha_grande.png'],
+            ['spr_concha_pequena','img/sprites/cenarios/concha_pequena.png'],
+        ];
+        spr.forEach(([key, path]) => {
+            if (!this.textures.exists(key)) this.load.image(key, path);
+        });
+    }
+
     create() {
         const W = this.cameras.main.width, H = this.cameras.main.height;
 
-        this.add.rectangle(0, 0, W, H / 2, 0x1a0800).setOrigin(0, 0);
-        this.add.rectangle(0, H / 2, W, H / 2, 0x3e2000).setOrigin(0, 0);
+        // Filtro LINEAR nos sprites do tutorial para qualidade suave ao escalar
+        const tutKeys = ['spr_gancho', 'spr_moeda_prata', 'spr_moeda_bronze',
+                         'spr_pedra_grande', 'spr_diamante'];
+        tutKeys.forEach(k => {
+            if (this.textures.exists(k))
+                this.textures.get(k).setFilter(Phaser.Textures.FilterMode.LINEAR);
+        });
+        // Restaura nearest-neighbor ao sair para não afetar o jogo
+        this.events.once('shutdown', () => {
+            tutKeys.forEach(k => {
+                if (this.textures.exists(k))
+                    this.textures.get(k).setFilter(Phaser.Textures.FilterMode.NEAREST);
+            });
+        });
+
+        this.add.rectangle(0, 0, W, H / 2, 0x2d0a0a).setOrigin(0, 0);
+        this.add.rectangle(0, H / 2, W, H / 2, 0x4a1010).setOrigin(0, 0);
 
         let moldura = this.add.graphics();
         moldura.lineStyle(3, 0xd4af37, 0.5);
         moldura.strokeRect(28, 28, W - 56, H - 56);
 
-        this.add.text(W / 2, 100, 'COMO JOGAR', {
-            fontFamily: 'Arial', fontSize: '50px', fontStyle: 'bold', color: '#d4af37', stroke: '#5c3a00', strokeThickness: 6
+        this.add.text(W / 2, 66, 'COMO JOGAR', {
+            fontFamily: 'Arial', fontSize: '44px', fontStyle: 'bold',
+            color: '#d4af37', stroke: '#2d0a0a', strokeThickness: 6
         }).setOrigin(0.5);
 
-        let painel = this.add.graphics();
-        painel.fillStyle(0x000000, 0.5);
-        painel.fillRoundedRect(W / 2 - 350, 180, 700, 380, 16);
-        painel.lineStyle(2, 0xd4af37, 0.8);
-        painel.strokeRoundedRect(W / 2 - 350, 180, 700, 380, 16);
+        let sep = this.add.graphics();
+        sep.lineStyle(1, 0xd4af37, 0.35);
+        sep.lineBetween(W / 2 - 300, 100, W / 2 + 300, 100);
 
-        let instrucoes = [
-            "🎣 O gancho balança automaticamente de um lado para o outro.",
-            "",
-            "🖱️ Clique com o MOUSE ou aperte ESPAÇO para lançar a corda.",
-            "",
-            "⚙️ Pegou uma pedra muito pesada? SEGURE o clique/ESPAÇO",
-            "para usar o BOOST de força. Mas cuidado: isso gasta Energia!",
-            "",
-            "💎 Junte moedas e diamantes para somar 25 Pontos e revelar",
-            "o Fragmento de Relíquia perdido no cenário.",
-            "",
-            "⏳ Fique de olho no Relógio! Se o tempo acabar, é Game Over."
-        ];
+        // Grid 2×2 de cards
+        const cW = 300, cH = 220, gap = 22;
+        const gLeft = W / 2 - cW - gap / 2;
+        const gTop = 114;
 
-        this.add.text(W / 2, 370, instrucoes.join('\n'), {
-            fontFamily: 'Arial', fontSize: '22px', color: '#ffffff', align: 'center', lineSpacing: 5
-        }).setOrigin(0.5);
+        const scene = this;
 
-        this._criarBotaoVoltar(W / 2, 650, () => { this.scene.start('MenuScene'); });
+        const criarCard = (gx, gy, accent, titulo, desc, drawFn) => {
+            let g = scene.add.graphics();
+            g.fillStyle(0x0d0600, 0.88);
+            g.fillRoundedRect(gx, gy, cW, cH, 12);
+            g.lineStyle(2, accent, 0.85);
+            g.strokeRoundedRect(gx, gy, cW, cH, 12);
+            g.lineStyle(1, accent, 0.18);
+            g.strokeRoundedRect(gx + 4, gy + 4, cW - 8, cH - 8, 10);
+            // Área do ícone com tint suave
+            g.fillStyle(accent, 0.07);
+            g.fillRoundedRect(gx + 8, gy + 8, cW - 16, 82, 8);
+            drawFn(g, gx + cW / 2, gy + 49);
+            // Linha separadora
+            g.lineStyle(1, accent, 0.3);
+            g.lineBetween(gx + 16, gy + 95, gx + cW - 16, gy + 95);
+            const corHex = '#' + accent.toString(16).padStart(6, '0');
+            scene.add.text(gx + cW / 2, gy + 108, titulo, {
+                fontFamily: 'Arial', fontSize: '15px', fontStyle: 'bold', color: corHex
+            }).setOrigin(0.5);
+            scene.add.text(gx + cW / 2, gy + 160, desc, {
+                fontFamily: 'Arial', fontSize: '13px', color: '#d4c9b0',
+                align: 'center', lineSpacing: 5,
+                wordWrap: { width: cW - 28 }
+            }).setOrigin(0.5);
+        };
+
+        // Card 1 — O Gancho (sprite real da garra)
+        criarCard(gLeft, gTop, 0xd4af37, 'O GANCHO',
+            'O gancho balança sozinho.\nClique ou pressione ESPAÇO\npara lançá-lo e coletar itens!',
+            (g, icx, icy) => {
+                // Corda
+                g.lineStyle(3, 0xcccccc, 0.85);
+                g.lineBetween(icx, icy - 42, icx, icy - 4);
+                // Sprite real da garra
+                scene.add.image(icx, icy + 20, 'spr_gancho').setDisplaySize(34, 44).setOrigin(0.5);
+                // Setas de balanço ← →
+                g.lineStyle(2, 0xd4af37, 0.65);
+                g.lineBetween(icx - 52, icy - 10, icx - 28, icy - 10);
+                g.lineBetween(icx - 52, icy - 10, icx - 43, icy - 17);
+                g.lineBetween(icx - 52, icy - 10, icx - 43, icy - 3);
+                g.lineBetween(icx + 28, icy - 10, icx + 52, icy - 10);
+                g.lineBetween(icx + 52, icy - 10, icx + 43, icy - 17);
+                g.lineBetween(icx + 52, icy - 10, icx + 43, icy - 3);
+            }
+        );
+
+        // Card 2 — Barra de Estamina (visual idêntico ao do jogo + pedra pesada)
+        criarCard(gLeft + cW + gap, gTop, 0xd4af37, 'BARRA DE ENERGIA',
+            'Com pedras pesadas, SEGURE\no clique ou aperte ESPAÇO para\ndar boost, mas gasta Energia!',
+            (g, icx, icy) => {
+                // Pedra grande sendo puxada
+                scene.add.image(icx + 44, icy - 2, 'spr_pedra_grande').setDisplaySize(42, 42).setOrigin(0.5);
+                // Gancho acima da pedra
+                scene.add.image(icx + 44, icy - 34, 'spr_gancho').setDisplaySize(18, 24).setOrigin(0.5);
+                g.lineStyle(2, 0xcccccc, 0.75);
+                g.lineBetween(icx + 44, icy - 46, icx + 44, icy - 22);
+                // Barra de energia — pill style igual ao jogo
+                const bx = icx - 58, by = icy + 10, bw = 90, bh = 16, br = 8;
+                g.fillStyle(0x1a1a1a, 0.95);
+                g.fillRoundedRect(bx, by, bw, bh, br);
+                g.fillStyle(0x44cc44, 1);
+                g.fillRoundedRect(bx + 2, by + 2, 56, bh - 4, br - 2);
+                for (let i = 1; i < 8; i++) {
+                    const sx = bx + 2 + ((bw - 4) / 8) * i;
+                    if (sx < bx + 58) { g.fillStyle(0x000000, 0.28); g.fillRect(sx, by + 2, 2, bh - 4); }
+                }
+                g.fillStyle(0xffffff, 0.18);
+                g.fillRoundedRect(bx + 3, by + 2, 52, Math.round((bh - 4) * 0.45), br - 2);
+                g.lineStyle(2, 0x999999, 0.9);
+                g.strokeRoundedRect(bx, by, bw, bh, br);
+                // Seta para baixo (energia caindo)
+                g.lineStyle(2, 0xff4444, 0.8);
+                g.lineBetween(icx - 10, icy - 8, icx - 10, icy + 8);
+                g.lineBetween(icx - 10, icy + 8, icx - 16, icy + 1);
+                g.lineBetween(icx - 10, icy + 8, icx - 4, icy + 1);
+            }
+        );
+
+        // Gera textura do diamante se ainda não existir
+        if (!this.textures.exists('spr_diamante')) {
+            const dg = this.make.graphics({ add: false });
+            dg.fillStyle(0x00ccff, 1);
+            dg.fillTriangle(20, 0, 40, 20, 20, 40);
+            dg.fillTriangle(20, 0, 0, 20, 20, 40);
+            dg.fillStyle(0xffffff, 0.35);
+            dg.fillTriangle(8, 18, 20, 2, 20, 18);
+            dg.lineStyle(2, 0x0088cc, 1);
+            dg.strokePoints([{ x: 20, y: 0 }, { x: 40, y: 20 }, { x: 20, y: 40 }, { x: 0, y: 20 }], true);
+            dg.generateTexture('spr_diamante', 40, 40);
+            dg.destroy();
+        }
+
+        // Card 3 — Itens a Coletar (moedas e diamantes)
+        criarCard(gLeft, gTop + cH + gap, 0xf5c842, 'ITENS A COLETAR',
+            'Colete moedas e diamantes\npara acumular pontos e revelar\nas relíquias perdidas do sítio arqueológico!',
+            (g, icx, icy) => {
+                const itens = [
+                    ['spr_moeda_prata',  38, 38, -50, 0],
+                    ['spr_moeda_bronze', 34, 34,   0, 0],
+                    ['spr_diamante',     38, 38,  50, 0],
+                ];
+                itens.forEach(([key, w, h, dx, dy]) => {
+                    scene.add.image(icx + dx, icy + dy, key).setDisplaySize(w, h).setOrigin(0.5);
+                });
+            }
+        );
+
+        // Card 4 — O Tempo (relógio idêntico ao HUD, proporcional: fator 38/57 ≈ 0.667)
+        criarCard(gLeft + cW + gap, gTop + cH + gap, 0xd4af37, 'O TEMPO',
+            'O relógio conta regressivamente.\nSe zerar, é Game Over!\nFique de olho e trabalhe rápido.',
+            (g, icx, icy) => {
+                // Face semi-transparente (igual ao jogo: 0x1a0506, 0.50)
+                g.fillStyle(0x1a0506, 0.50);
+                g.fillCircle(icx, icy, 37);
+                // Borda externa (jogo: lineStyle 2, 0xd4af37, 0.95)
+                g.lineStyle(2, 0xd4af37, 0.95);
+                g.strokeCircle(icx, icy, 38);
+                // Anel interno (jogo: lineStyle 1, 0xd4af37, 0.3, raio 50 → 33)
+                g.lineStyle(1, 0xd4af37, 0.3);
+                g.strokeCircle(icx, icy, 33);
+                // Marcas de hora nos 4 pontos cardeais (jogo: 44→52 → 29→35)
+                for (let i = 0; i < 4; i++) {
+                    const ang = (i * Math.PI / 2) - Math.PI / 2;
+                    g.lineStyle(2, 0xd4af37, 0.7);
+                    g.beginPath();
+                    g.moveTo(icx + Math.cos(ang) * 29, icy + Math.sin(ang) * 29);
+                    g.lineTo(icx + Math.cos(ang) * 35, icy + Math.sin(ang) * 35);
+                    g.strokePath();
+                }
+                // Fatia de tempo (jogo: raio 36 → 24, fillStyle 0x000000, 0.80)
+                g.fillStyle(0x000000, 0.80);
+                g.beginPath();
+                g.moveTo(icx, icy);
+                g.arc(icx, icy, 24, -Math.PI / 2, -Math.PI / 2 + Math.PI * 0.7, false);
+                g.closePath();
+                g.fillPath();
+                // Textos (jogo: 'TEMPO' cy-22→-15, número cy+10→+7, bold 26px→17px)
+                scene.add.text(icx, icy + 3, '100', { font: 'bold 17px Arial', fill: '#f0e0b0', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5);
+            }
+        );
+
+        this._criarBotaoVoltar(W / 2, H - 62, () => { this.scene.start('MenuScene'); });
     }
 
     _criarBotaoVoltar(x, y, callback) {
-        criarBotaoMuseu(this, x, y, 280, 62, '← ENTENDIDO!', true, callback);
+        criarBotaoMuseu(this, x, y, 280, 62, '← VOLTAR AO MENU', true, callback);
     }
 }
 
@@ -355,34 +519,95 @@ class TutorialScene extends Phaser.Scene {
 class SliderVolume {
     constructor(scene, cx, sy, sw, muteY, onVolumeChange) {
         this._scene = scene;
-        this._SX = cx - sw / 2;
-        this._SY = sy;
-        this._SW = sw;
         this._cx = cx;
+        this._cy = sy;
+        this._raio = 40;
+        this._minAng = -135; // graus, 0° = topo, sentido horário
+        this._maxAng = 135;
+        // Mantidos por compatibilidade com chamadas externas (_moverSlider(_SX) = mudo, _SX+_SW = máximo)
+        this._SX = 0;
+        this._SW = 1;
         this._muteY = muteY;
         this._onVolumeChange = onVolumeChange || null;
         this._arrastando = false;
-        this._volAntesMute = null;
 
-        let trilha = scene.add.graphics();
-        trilha.fillStyle(0x2a1800, 1);
-        trilha.fillRoundedRect(this._SX, sy - 8, sw, 16, 8);
-        trilha.lineStyle(1, 0x7a5c00, 1);
-        trilha.strokeRoundedRect(this._SX, sy - 8, sw, 16, 8);
+        // Sombra do gabinete
+        let sombra = scene.add.graphics();
+        sombra.fillStyle(0x000000, 0.4);
+        sombra.fillCircle(cx + 3, sy + 3, this._raio + 9);
 
-        this.sliderFill = scene.add.graphics();
-        this.handle = scene.add.circle(this._SX + volumeGlobal * sw, sy, 20, 0xd4af37);
-        this.handle.setStrokeStyle(3, 0x5c3a00);
+        // Aro externo (metal bronze envelhecido)
+        let bezel = scene.add.graphics();
+        bezel.fillStyle(0x3a2a14, 1);
+        bezel.fillCircle(cx, sy, this._raio + 9);
+        bezel.lineStyle(2, 0x140d05, 1);
+        bezel.strokeCircle(cx, sy, this._raio + 9);
+        bezel.lineStyle(1, 0xd4af37, 0.35);
+        bezel.strokeCircle(cx, sy, this._raio + 4);
 
-        this.textoVol = scene.add.text(cx, sy + 60, `${Math.round(volumeGlobal * 100)}%`, {
-            fontFamily: 'Arial', fontSize: '34px', fontStyle: 'bold', color: '#d4af37'
+        // Marcas do dial ao redor (estilo rádio antigo)
+        let ticks = scene.add.graphics();
+        const numTicks = 11;
+        for (let i = 0; i < numTicks; i++) {
+            const t = i / (numTicks - 1);
+            const ang = Phaser.Math.DegToRad(this._minAng + t * (this._maxAng - this._minAng));
+            const r1 = this._raio + 5, r2 = this._raio + (i === 0 || i === numTicks - 1 ? 16 : 12);
+            const corT = (i === 0 || i === numTicks - 1) ? 0xd4af37 : 0xd4af37;
+            ticks.lineStyle(i % 5 === 0 ? 2 : 1, corT, i % 5 === 0 ? 0.8 : 0.4);
+            ticks.lineBetween(
+                cx + Math.sin(ang) * r1, sy - Math.cos(ang) * r1,
+                cx + Math.sin(ang) * r2, sy - Math.cos(ang) * r2
+            );
+        }
+
+        // Corpo giratório (bakelite escuro) com ponteiro
+        this.knobG = scene.add.graphics();
+        this._desenharKnob = () => {
+            this.knobG.clear();
+            const ang = Phaser.Math.DegToRad(this._minAng + volumeGlobal * (this._maxAng - this._minAng));
+            const r = this._raio;
+            // Corpo
+            this.knobG.fillStyle(0x2a1c0e, 1);
+            this.knobG.fillCircle(cx, sy, r);
+            this.knobG.lineStyle(2, 0x140d05, 1);
+            this.knobG.strokeCircle(cx, sy, r);
+            // Ranhuras de grip ao redor da borda
+            for (let i = 0; i < 24; i++) {
+                const a2 = (i / 24) * Math.PI * 2;
+                this.knobG.lineStyle(1, 0x4a3216, 0.5);
+                this.knobG.lineBetween(
+                    cx + Math.cos(a2) * (r - 5), sy + Math.sin(a2) * (r - 5),
+                    cx + Math.cos(a2) * r, sy + Math.sin(a2) * r
+                );
+            }
+            // Brilho superior esquerdo
+            this.knobG.fillStyle(0x5a3f22, 0.5);
+            this.knobG.fillCircle(cx - r * 0.3, sy - r * 0.3, r * 0.4);
+            // Anel de relevo interno
+            this.knobG.lineStyle(1.5, 0x140d05, 0.7);
+            this.knobG.strokeCircle(cx, sy, r * 0.55);
+            // Ponteiro indicador (dourado)
+            const px = cx + Math.sin(ang) * (r - 7);
+            const py = sy - Math.cos(ang) * (r - 7);
+            this.knobG.lineStyle(3, 0xd4af37, 1);
+            this.knobG.lineBetween(cx, sy, px, py);
+            this.knobG.fillStyle(0xd4af37, 1);
+            this.knobG.fillCircle(px, py, 3);
+            // Parafuso central
+            this.knobG.fillStyle(0x6b4408, 1);
+            this.knobG.fillCircle(cx, sy, 4);
+            this.knobG.lineStyle(1, 0x2a1c0e, 1);
+            this.knobG.lineBetween(cx - 3, sy, cx + 3, sy);
+        };
+        this._desenharKnob();
+
+        this.textoVol = scene.add.text(cx, sy + this._raio + 28, `${Math.round(volumeGlobal * 100)}%`, {
+            fontFamily: 'Arial', fontSize: '26px', fontStyle: 'bold', color: '#d4af37'
         }).setOrigin(0.5);
 
-        this._atualizarSlider();
-
-        let zonaSlider = scene.add.zone(cx, sy, sw + 60, 70).setInteractive({ useHandCursor: true });
-        zonaSlider.on('pointerdown', (ptr) => { this._arrastando = true; this._moverSlider(ptr.x); });
-        scene.input.on('pointermove', (ptr) => { if (this._arrastando) this._moverSlider(ptr.x); });
+        let zonaKnob = scene.add.zone(cx, sy, (this._raio + 18) * 2, (this._raio + 18) * 2).setInteractive({ useHandCursor: true });
+        zonaKnob.on('pointerdown', (ptr) => { this._arrastando = true; this._girar(ptr.x, ptr.y); });
+        scene.input.on('pointermove', (ptr) => { if (this._arrastando) this._girar(ptr.x, ptr.y); });
         scene.input.on('pointerup', () => {
             if (this._arrastando) {
                 this._arrastando = false;
@@ -399,34 +624,40 @@ class SliderVolume {
 
         let zonaMute = scene.add.zone(cx, muteY, 200, 50).setInteractive({ useHandCursor: true });
         zonaMute.on('pointerdown', () => {
-            if (volumeGlobal > 0) {
-                this._volAntesMute = volumeGlobal;
-                this._moverSlider(this._SX);
+            if (volumeGlobal === 0) {
+                this._moverSlider(this._SX + this._SW);
             } else {
-                this._moverSlider(this._SX + (this._volAntesMute || 1.0) * this._SW);
+                this._moverSlider(this._SX);
             }
             localStorage.setItem('museuVolume', volumeGlobal);
         });
     }
 
-    _moverSlider(mouseX) {
-        let novoX = Phaser.Math.Clamp(mouseX, this._SX, this._SX + this._SW);
-        volumeGlobal = (novoX - this._SX) / this._SW;
-        this.handle.x = novoX;
+    // Gira o knob conforme a posição do ponteiro relativa ao centro
+    _girar(ptrX, ptrY) {
+        const dx = ptrX - this._cx, dy = ptrY - this._cy;
+        const angDeg = Phaser.Math.RadToDeg(Math.atan2(dx, -dy));
+        let vol;
+        if (angDeg > this._maxAng) vol = 1;
+        else if (angDeg < this._minAng) vol = 0;
+        else vol = (angDeg - this._minAng) / (this._maxAng - this._minAng);
+        this._aplicarVolume(vol);
+    }
+
+    // Compatibilidade: value no intervalo abstrato [_SX, _SX+_SW] = [0,1]
+    _moverSlider(value) {
+        this._aplicarVolume((value - this._SX) / this._SW);
+    }
+
+    _aplicarVolume(vol) {
+        volumeGlobal = Phaser.Math.Clamp(vol, 0, 1);
         this.textoVol.setText(`${Math.round(volumeGlobal * 100)}%`);
-        this._atualizarSlider();
+        this._desenharKnob();
         this._desenharMute(volumeGlobal === 0);
+        this._muteTxt.setText(volumeGlobal === 0 ? '🔇  MUDO' : '🔊  SOM');
         this._muteTxt.setColor(volumeGlobal === 0 ? '#d4af37' : '#664422');
         this._scene.sound.volume = volumeGlobal;
         if (this._onVolumeChange) this._onVolumeChange(volumeGlobal);
-    }
-
-    _atualizarSlider() {
-        this.sliderFill.clear();
-        if (volumeGlobal > 0) {
-            this.sliderFill.fillStyle(0xd4af37, 1);
-            this.sliderFill.fillRoundedRect(this._SX, this._SY - 8, volumeGlobal * this._SW, 16, { tl: 8, bl: 8, tr: 0, br: 0 });
-        }
     }
 
     _desenharMute(ativo) {
@@ -442,27 +673,36 @@ class OptionsScene extends Phaser.Scene {
     create() {
         const W = this.cameras.main.width, H = this.cameras.main.height;
 
-        this.add.rectangle(0, 0, W, H / 2, 0x1a0800).setOrigin(0, 0);
-        this.add.rectangle(0, H / 2, W, H / 2, 0x3e2000).setOrigin(0, 0);
+        this.add.rectangle(0, 0, W, H / 2, 0x2d0a0a).setOrigin(0, 0);
+        this.add.rectangle(0, H / 2, W, H / 2, 0x4a1010).setOrigin(0, 0);
 
         let moldura = this.add.graphics();
         moldura.lineStyle(3, 0xd4af37, 0.5);
         moldura.strokeRect(28, 28, W - 56, H - 56);
 
         this.add.text(W / 2, 120, 'OPÇÕES', {
-            fontFamily: 'Arial', fontSize: '58px', fontStyle: 'bold', color: '#d4af37', stroke: '#5c3a00', strokeThickness: 7
+            fontFamily: 'Arial', fontSize: '58px', fontStyle: 'bold', color: '#d4af37', stroke: '#2d0a0a', strokeThickness: 7
         }).setOrigin(0.5);
 
         this.add.text(W / 2, 245, 'VOLUME', {
-            fontFamily: 'Arial', fontSize: '28px', fontStyle: 'bold', color: '#bf8b6e'
+            fontFamily: 'Arial', fontSize: '28px', fontStyle: 'bold', color: '#f5e6c8'
         }).setOrigin(0.5);
 
-        this.add.text(W / 2 - 240, 330, '🔇', { fontSize: '28px' }).setOrigin(0.5);
-        this.add.text(W / 2 + 240, 330, '🔊', { fontSize: '28px' }).setOrigin(0.5);
+        let iconMute = this.add.text(W / 2 - 240, 330, '🔇', { fontSize: '32px' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+        let iconSound = this.add.text(W / 2 + 240, 330, '🔊', { fontSize: '32px' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-        new SliderVolume(this, W / 2, 330, 400, 480);
+        let slider = new SliderVolume(this, W / 2, 330, 400, 490);
 
-        this._criarBotaoVoltar(W / 2, 620, () => { this.scene.start('MenuScene'); });
+        iconMute.on('pointerdown', () => {
+            slider._moverSlider(slider._SX);
+            localStorage.setItem('museuVolume', volumeGlobal);
+        });
+        iconSound.on('pointerdown', () => {
+            slider._moverSlider(slider._SX + slider._SW);
+            localStorage.setItem('museuVolume', volumeGlobal);
+        });
+
+        this._criarBotaoVoltar(W / 2, 624, () => { this.scene.start('MenuScene'); });
     }
 
     _criarBotaoVoltar(x, y, callback) {
@@ -508,8 +748,20 @@ class PauseScene extends Phaser.Scene {
             color: '#d4af37', stroke: '#0d0600', strokeThickness: 5
         }).setOrigin(0.5);
 
-        new SliderVolume(this, W / 2, 340, 400, 470, (vol) => {
+        let iconMuteP = this.add.text(W / 2 - 240, 340, '🔇', { fontSize: '32px' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+        let iconSoundP = this.add.text(W / 2 + 240, 340, '🔊', { fontSize: '32px' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+        let sliderP = new SliderVolume(this, W / 2, 340, 400, 470, (vol) => {
             this.scene.get(this.parentScene).sound.volume = vol;
+        });
+
+        iconMuteP.on('pointerdown', () => {
+            sliderP._moverSlider(sliderP._SX);
+            localStorage.setItem('museuVolume', volumeGlobal);
+        });
+        iconSoundP.on('pointerdown', () => {
+            sliderP._moverSlider(sliderP._SX + sliderP._SW);
+            localStorage.setItem('museuVolume', volumeGlobal);
         });
 
         this._criarBotaoSprite(W / 2, 540, 'CONTINUAR', true, () => { this._retomarJogo(); });
@@ -530,6 +782,7 @@ class PauseScene extends Phaser.Scene {
     }
 
     _retomarJogo() {
+        if (musicaFase) musicaFase.resume();
         this.scene.stop();
         this.scene.resume(this.parentScene);
     }
@@ -570,6 +823,16 @@ class GameScene extends Phaser.Scene {
         this.load.image('exib_mascara', 'img/sprites/fragmentos/mascara%20exibicao.png');
         this.load.image('exib_santo', 'img/sprites/fragmentos/santo%20exibicao.png');
         this.load.image('exib_tigre', 'img/sprites/fragmentos/tigre%20exibicao.png');
+        this.load.image('energia_bar', 'img/sprites/cenarios/energia.png');
+        // Kenney UI Pack Adventure (CC0)
+        this.load.image('ui_panel', 'img/ui/panel_brown.png');
+        this.load.image('ui_button', 'img/ui/button_brown.png');
+        this.load.image('ui_round', 'img/ui/round_brown.png');
+        this.load.image('ui_bar_fill', 'img/ui/progress_green.png');
+        this.load.image('ui_bar_border', 'img/ui/progress_green_border.png');
+        // Kenney Fantasy UI Borders (CC0)
+        this.load.image('ui_fborder', 'img/ui/fantasy/hud-border.png');
+        this.load.image('ui_fborder_s', 'img/ui/fantasy/hud-border-simple.png');
     }
 
     create() {
@@ -583,13 +846,39 @@ class GameScene extends Phaser.Scene {
 }
 
 GameScene.prototype._criarBotaoPausa = function (x, y) {
-    this.botaoPausaBg = criarBotaoMuseu(this, x, y, 50, 50, 'II', true, () => { this._abrirMenuPausa(); });
+    const w = 50, h = 50, r = 8;
+    const gfx = this.add.graphics().setDepth(3);
+
+    const desenhar = (hover) => {
+        gfx.clear();
+        gfx.fillStyle(0x1a0506, hover ? 0.75 : 0.50);
+        gfx.fillRoundedRect(x - w / 2, y - h / 2, w, h, r);
+        gfx.lineStyle(2, 0xd4af37, hover ? 1 : 0.95);
+        gfx.strokeRoundedRect(x - w / 2, y - h / 2, w, h, r);
+        gfx.lineStyle(1, 0xd4af37, 0.3);
+        gfx.strokeRoundedRect(x - w / 2 + 3, y - h / 2 + 3, w - 6, h - 6, 6);
+    };
+    desenhar(false);
+
+    const pauseTxt = this.add.text(x, y, 'II', {
+        fontFamily: 'Arial', fontSize: '18px', fontStyle: 'bold', color: '#d4af37'
+    }).setOrigin(0.5).setDepth(4);
+
+    // Hitbox invisível para interatividade (suporta getBounds/setInteractive)
+    const hitbox = this.add.rectangle(x, y, w, h, 0x000000, 0).setOrigin(0.5).setDepth(4);
+    hitbox.setInteractive({ useHandCursor: true });
+    hitbox.on('pointerover', () => { desenhar(true); pauseTxt.setScale(1.1); });
+    hitbox.on('pointerout', () => { desenhar(false); pauseTxt.setScale(1.0); });
+    hitbox.on('pointerdown', () => { this.time.delayedCall(50, () => { this._abrirMenuPausa(); }); });
+
+    this.botaoPausaBg = hitbox;
 };
 
 GameScene.prototype._abrirMenuPausa = function () {
     if (this.scene.isPaused()) return;
     estadoGancho = 'BALANCANDO';
     if (objetoPuxado) { objetoPuxado = null; }
+    if (musicaFase) musicaFase.pause();
     this.scene.launch('PauseScene', { parentScene: this.scene.key });
     this.scene.pause();
 };
@@ -620,34 +909,57 @@ function create() {
     this._revelaFechar = null;
     this.gameOverDrawn = false;
 
-    textoHUD = this.add.text(10, 10, '', { font: '22px Arial', fill: '#fff', fontStyle: 'bold' });
+    textoCentroBg = null;
     textoCentro = this.add.text(W / 2, H / 2, '', {
-        fontFamily: '"IM Fell English", Georgia, serif',
-        fontSize: '30px', fontStyle: 'italic',
-        color: '#1e0a00',
-        stroke: '#7a4c00', strokeThickness: 1,
-        align: 'center', lineSpacing: 10,
-        padding: { x: 44, y: 26 },
-        backgroundColor: '#c8a040'
-    }).setOrigin(0.5).setVisible(false);
+        fontFamily: 'MedievalSharp, Georgia, serif', fontSize: '28px',
+        color: '#f5deb3', stroke: '#2a0e00', strokeThickness: 2,
+        align: 'center', lineSpacing: 10
+    }).setOrigin(0.5).setVisible(false).setDepth(11);
 
-    this.add.text(10, 60, '⚡ ENERGIA', { font: '13px Arial', fill: '#ffdd55', fontStyle: 'bold' });
-    barraEstamina = this.add.graphics();
+    // Centro vertical do HUD = meio entre topo da tela e a base do pé do personagem
+    // personagem: charY0=110, metade da altura ≈ 60*(W/1366) → pé ≈ 110+60*(W/1366)
+    const hudCY = Math.round((110 + Math.round(60 * (W / 1366))) / 2);
+    hudBarY = hudCY + 30; // barra abaixo do painel (painel agora com 86px)
 
-    labelBoost = this.add.text(250, 76, '⚡ FORÇA!', { font: '13px Arial', fill: '#ffff00', fontStyle: 'bold', stroke: '#000000', strokeThickness: 3 }).setVisible(false);
+    // Painel de fundo do HUD esquerdo — só texto (3 linhas com espaçamento)
+    let hudPanelBg = this.add.graphics().setDepth(2);
+    hudPanelBg.fillStyle(0x1a0506, 0.50);
+    hudPanelBg.fillRoundedRect(6, hudCY - 62, 290, 86, 9);
+    hudPanelBg.lineStyle(2, 0xd4af37, 0.95);
+    hudPanelBg.strokeRoundedRect(6, hudCY - 62, 290, 86, 9);
+    hudPanelBg.lineStyle(1, 0xd4af37, 0.3);
+    hudPanelBg.strokeRoundedRect(10, hudCY - 58, 282, 78, 7);
 
-    const cx = W - 104, cy = 108;
+    textoHUD = this.add.text(16, hudCY - 56, '', {
+        font: '17px Arial', fill: '#f5deb3', fontStyle: 'bold', lineSpacing: 7
+    }).setDepth(3);
 
-    let clockShadow = this.add.graphics();
-    clockShadow.fillStyle(0x000000, 0.5); clockShadow.fillCircle(cx + 3, cy + 3, 57);
-    let clockFace = this.add.graphics();
-    clockFace.fillStyle(0x1c0f04, 1); clockFace.fillCircle(cx, cy, 54);
-    clockFace.lineStyle(5, 0xd4af37, 1); clockFace.strokeCircle(cx, cy, 55);
+    // Ícone de raio à esquerda da barra, alinhado ao painel (x=6)
+    // Barra de energia fora do painel, abaixo dele
+    barraEstamina = this.add.graphics().setDepth(3);
 
-    graficoTempoPizza = this.add.graphics({ x: cx, y: cy }).setDepth(1);
+    boostPanel = this.add.graphics().setDepth(3).setVisible(false);
+    labelBoost = this.add.text(0, 0, '').setVisible(false).setDepth(3);
 
-    this.add.text(cx, cy - 24, 'TEMPO', { font: '11px Arial', fill: '#bf8b6e', fontStyle: 'bold' }).setOrigin(0.5).setDepth(3);
-    textoRelogio = this.add.text(cx, cy + 10, '100', { font: 'bold 26px Arial', fill: '#f0e0b0', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5).setDepth(3);
+    const cx = W - 104, cy = hudCY;
+    let clockFace = this.add.graphics().setDepth(2);
+    clockFace.fillStyle(0x1a0506, 0.50); clockFace.fillCircle(cx, cy, 56);
+    clockFace.lineStyle(2, 0xd4af37, 0.95); clockFace.strokeCircle(cx, cy, 57);
+    clockFace.lineStyle(1, 0xd4af37, 0.3); clockFace.strokeCircle(cx, cy, 50);
+    // Marcas de hora (12, 3, 6, 9)
+    for (let i = 0; i < 4; i++) {
+        const ang = (i * Math.PI / 2) - Math.PI / 2;
+        clockFace.lineStyle(2, 0xd4af37, 0.7);
+        clockFace.beginPath();
+        clockFace.moveTo(cx + Math.cos(ang) * 44, cy + Math.sin(ang) * 44);
+        clockFace.lineTo(cx + Math.cos(ang) * 52, cy + Math.sin(ang) * 52);
+        clockFace.strokePath();
+    }
+
+    graficoTempoPizza = this.add.graphics({ x: cx, y: cy }).setDepth(3);
+    this.add.text(cx, cy - 22, 'TEMPO', { font: '11px Arial', fill: '#bf8b6e', fontStyle: 'bold' }).setOrigin(0.5).setDepth(4);
+    textoRelogio = this.add.text(cx, cy + 10, '100', { font: 'bold 26px Arial', fill: '#f0e0b0', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5).setDepth(4);
+    clockNeedle = this.add.graphics().setDepth(5);
 
     grupoObjetos = this.physics.add.group();
     linhaCorda = this.add.graphics().setDepth(4);
@@ -682,17 +994,37 @@ function create() {
     this.teclaEsc = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
     this.teclaM = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
 
-    this._criarBotaoPausa(W - 40, 40);
+    this._criarBotaoPausa(cx + 70, cy - 45);
 
     this.time.addEvent({ delay: 1000, callback: diminuirTempo, callbackScope: this, loop: true });
 
     montarFase.call(this);
 }
 
+function mostrarBanner(scene, texto, cor) {
+    const W = scene.cameras.main.width, H = scene.cameras.main.height;
+    const bannerW = 680, bannerH = 130;
+    const bx = W / 2 - bannerW / 2, by = H / 2 - bannerH / 2;
+    if (textoCentroBg) { textoCentroBg.destroy(); }
+    textoCentroBg = scene.add.graphics().setDepth(10);
+    textoCentroBg.fillStyle(0x2d0a0a, 0.95);
+    textoCentroBg.fillRoundedRect(bx, by, bannerW, bannerH, 10);
+    textoCentroBg.lineStyle(3, 0xd4af37, 1);
+    textoCentroBg.strokeRoundedRect(bx, by, bannerW, bannerH, 10);
+    textoCentroBg.lineStyle(1, 0xd4af37, 0.4);
+    textoCentroBg.strokeRoundedRect(bx + 7, by + 7, bannerW - 14, bannerH - 14, 7);
+    textoCentro.setText(texto).setColor(cor || '#f5deb3').setVisible(true);
+}
+
+function esconderBanner() {
+    textoCentro.setVisible(false);
+    if (textoCentroBg) { textoCentroBg.destroy(); textoCentroBg = null; }
+}
+
 function atualizarHUD() {
-    const sitios = ['Ruínas da Terra', 'Leito do Rio', 'Sambaqui das Pedras'];
+    const sitios = ['Ponta de Baixo', 'Rio Maruim', 'Sambaqui Ilha da Casca'];
     const sitio = sitios[cenarioAtual - 1] || 'Sítio Desconhecido';
-    textoHUD.setText(`Sítio: ${sitio} — Peça ${faseNoCenario}/3\nPts. de Pesquisa: ${moedasColetadas}/${metaMoedas} | Acervo: ${reliquiasCompletas}/3 relíquias`);
+    textoHUD.setText(`Sítio: ${sitio} - Peça ${faseNoCenario}/3\nFragmentos Coletados: ${moedasColetadas}/${metaMoedas}\nAcervo: ${reliquiasCompletas}/3 relíquias`);
 }
 
 function acharPosicaoValida(raioNovoItem, larguraTela) {
@@ -792,7 +1124,7 @@ function montarFase() {
     this.ancoraY = Math.round((110 - charH / 2) + (ay - charTopDesign) * gameScale);
 
     atualizarHUD();
-    textoCentro.setText('').setVisible(false);
+    esconderBanner();
     const cfgCenario = [
         { m5: 2, m3: 6, m1: 8, pGrande: 2, pPequena: 4 },
         { m5: 3, m3: 7, m1: 9, pGrande: 3, pPequena: 5 },
@@ -860,11 +1192,10 @@ function montarFase() {
 }
 
 function spawnarFragmento() {
-    textoCentro.setText('⚑  ARTEFATO LOCALIZADO  ⚑\nResgate o fragmento antes que o tempo expire!');
-    textoCentro.setColor('#1e0a00').setVisible(true);
+    mostrarBanner(this, 'ARTEFATO LOCALIZADO\nResgate o fragmento antes que o tempo expire!');
 
     this.time.delayedCall(2500, () => {
-        if (!esperandoProximaFase && !jogoAcabou) textoCentro.setText('');
+        if (!esperandoProximaFase && !jogoAcabou) esconderBanner();
     });
 
     let r = 20;
@@ -890,8 +1221,7 @@ function diminuirTempo() {
 
     if (tempoRestante <= 0) {
         jogoAcabou = true;
-        textoCentro.setText('FIM DA EXPEDIÇÃO\nO tempo de escavação esgotou.');
-        textoCentro.setColor('#5a0000').setVisible(true);
+        mostrarBanner(this, 'FIM DA EXPEDIÇÃO\nO tempo de escavação esgotou.', '#ff8080');
         limparSave();
         mostrarControlesGameOver.call(this);
     }
@@ -901,15 +1231,17 @@ function mostrarControlesGameOver() {
     if (this.gameOverDrawn) return;
     if (this.botaoPausaBg) this.botaoPausaBg.disableInteractive();
     const W = this.cameras.main.width;
-    gameOverRetangulo = this.add.rectangle(W / 2, 530, 680, 90, 0x000000, 0.55).setOrigin(0.5);
-
     let mensagem = jogoVencido
         ? 'Pressione M para retornar ao Museu Histórico de São José.'
-        : 'Pressione ESPAÇO ou clique para tentar novamente. M para o museu.';
+        : 'Clique ou aperte ESPAÇO para continuar a escavação.';
 
-    gameOverTexto = this.add.text(W / 2, 500, mensagem, {
+    gameOverTexto = this.add.text(W / 2, 510, mensagem, {
         fontFamily: 'Arial', fontSize: '24px', color: '#ffffff', align: 'center'
     }).setOrigin(0.5);
+
+    const textH = gameOverTexto.height;
+    gameOverRetangulo = this.add.rectangle(W / 2, 510, gameOverTexto.width + 40, textH + 30, 0x000000, 0.55).setOrigin(0.5);
+    gameOverRetangulo.setDepth(gameOverTexto.depth - 1);
     this.gameOverDrawn = true;
 }
 
@@ -999,26 +1331,43 @@ function update() {
     let corB = propE > 0.50 ? 0x44cc44 : propE > 0.20 ? 0xffaa00 : 0xff3333;
     let alphaB = propE < 0.20 ? (Math.sin(this.time.now * 0.012) * 0.4 + 0.6) : 1;
 
-    barraEstamina.fillStyle(0x111111, 0.9);
-    barraEstamina.fillRoundedRect(10, 76, 230, 16, 6);
-    barraEstamina.fillStyle(0x000000, 0.3);
-    barraEstamina.fillRoundedRect(10, 78, 230, 14, 5);
+    barraEstamina.clear();
 
-    let fillW = Math.max(0, Math.round(230 * propE));
-    if (fillW > 0) {
+    const barX = 16, barH = 20, barW = 270, barR = barH / 2;
+
+    // Fundo escuro (pill)
+    barraEstamina.fillStyle(0x1a1a1a, 0.95);
+    barraEstamina.fillRoundedRect(barX, hudBarY, barW, barH, barR);
+
+    const fillW = Math.max(0, Math.round((barW - 4) * propE));
+    if (fillW > barR) {
+        // Preenchimento colorido
         barraEstamina.fillStyle(corB, alphaB);
-        barraEstamina.fillRoundedRect(10, 76, fillW, 16, 6);
-        barraEstamina.fillStyle(0xffffff, 0.18);
-        barraEstamina.fillRoundedRect(12, 77, Math.max(0, fillW - 4), 5, 3);
+        barraEstamina.fillRoundedRect(barX + 2, hudBarY + 2, fillW, barH - 4, barR - 2);
+
+        // Segmentos verticais (divisórias escuras)
+        const numSeg = 8;
+        const segStep = (barW - 4) / numSeg;
+        for (let i = 1; i < numSeg; i++) {
+            const sx = barX + 2 + segStep * i;
+            if (sx < barX + 2 + fillW - 2) {
+                barraEstamina.fillStyle(0x000000, 0.30);
+                barraEstamina.fillRect(sx, hudBarY + 2, 2, barH - 4);
+            }
+        }
+
+        // Brilho superior (gloss)
+        barraEstamina.fillStyle(0xffffff, 0.20);
+        barraEstamina.fillRoundedRect(barX + 3, hudBarY + 2, fillW - 2, Math.round((barH - 4) * 0.45), barR - 2);
     }
 
-    barraEstamina.lineStyle(1, 0x666666, 0.9);
-    barraEstamina.strokeRoundedRect(10, 76, 230, 16, 6);
+    // Borda externa (silver)
+    barraEstamina.lineStyle(2.5, 0x999999, 1);
+    barraEstamina.strokeRoundedRect(barX, hudBarY, barW, barH, barR);
 
-    labelBoost.setVisible(
-        estadoGancho === 'SUBINDO' && objetoPuxado !== null &&
-        objetoPuxado.tipo === 'pedra_pesada' && estamina > 10
-    );
+    const boostAtivo = estadoGancho === 'SUBINDO' && objetoPuxado !== null &&
+        objetoPuxado.tipo === 'pedra_pesada' && estamina > 10;
+    labelBoost.setVisible(boostAtivo);
 
     textoRelogio.setText(String(Math.max(0, tempoRestante)));
     if (tempoRestante <= 20) {
@@ -1036,10 +1385,12 @@ function update() {
         graficoTempoPizza.moveTo(0, 0);
         let anguloInicioPizza = -Math.PI / 2;
         let anguloFimPizza = anguloInicioPizza + (porcentagemTempoPerdido * 2 * Math.PI);
-        graficoTempoPizza.arc(0, 0, 43, anguloInicioPizza, anguloFimPizza, false);
+        graficoTempoPizza.arc(0, 0, 36, anguloInicioPizza, anguloFimPizza, false);
         graficoTempoPizza.closePath();
         graficoTempoPizza.fillPath();
     }
+
+    clockNeedle.clear();
 
     if (estadoGancho === 'BALANCANDO') {
         if (apertouBotao) acaoPrincipal.call(this, this.input.activePointer);
@@ -1125,8 +1476,7 @@ function update() {
                             });
                         } else {
                             mostrarCenarioCompleto(this, cenarioCaptura, () => {
-                                textoCentro.setText(`Novo sítio desbloqueado!\nClique para iniciar a próxima escavação.`);
-                                textoCentro.setColor('#1e0a00').setVisible(true);
+                                mostrarBanner(this, `Novo sítio desbloqueado!\nClique para iniciar a próxima escavação.`);
                                 esperandoProximaFase = true;
                             });
                         }
@@ -1135,8 +1485,7 @@ function update() {
                         tempoRestante = 100;
                         salvarJogo();
                         mostrarRevela(this, cenarioCaptura, fragsCapturados, () => {
-                            textoCentro.setText(`Fragmento ${fragsCapturados}/3 catalogado\nClique para continuar a escavação.`);
-                            textoCentro.setColor('#1e0a00').setVisible(true);
+                            mostrarBanner(this, `Fragmento ${fragsCapturados}/3 catalogado\nClique para continuar a escavação.`);
                             esperandoProximaFase = true;
                         });
                     }
@@ -1176,81 +1525,88 @@ function mostrarRevela(scene, cenario, numFragmentos, aoFechar) {
     const subtitulos = [
         '',
         'O primeiro fragmento foi catalogado. A busca continua...',
-        'Dois fragmentos em custódia. Falta apenas um!'
+        'Dois fragmentos encontrados. Falta apenas um!'
     ];
 
     scene._revelaAtiva = true;
     const obj = [];
 
+    const pw = 640, ph = 480;
+    const px = W / 2 - pw / 2, py = H / 2 - ph / 2;
+
     obj.push(scene.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.82).setDepth(50));
 
-    // Sombra do painel
-    let sombra = scene.add.graphics().setDepth(50);
-    sombra.fillStyle(0x000000, 0.5);
-    sombra.fillRoundedRect(W / 2 - 274, 106, 560, 530, 12);
-    obj.push(sombra);
-
-    // Painel principal
     let panel = scene.add.graphics().setDepth(51);
     panel.fillStyle(0x0d0600, 1);
-    panel.fillRoundedRect(W / 2 - 280, 100, 560, 530, 14);
+    panel.fillRoundedRect(px, py, pw, ph, 14);
     panel.fillStyle(0x1c0d02, 0.4);
-    panel.fillRoundedRect(W / 2 - 272, 108, 544, 514, 10);
+    panel.fillRoundedRect(px + 8, py + 8, pw - 16, ph - 16, 10);
     panel.lineStyle(3, 0xd4af37, 1);
-    panel.strokeRoundedRect(W / 2 - 280, 100, 560, 530, 14);
+    panel.strokeRoundedRect(px, py, pw, ph, 14);
     panel.lineStyle(1, 0xd4af37, 0.35);
-    panel.strokeRoundedRect(W / 2 - 272, 108, 544, 514, 10);
+    panel.strokeRoundedRect(px + 8, py + 8, pw - 16, ph - 16, 10);
     obj.push(panel);
 
-    // Cabeçalho museológico
-    obj.push(scene.add.text(W / 2, 122, '— MUSEU HISTÓRICO DE SÃO JOSÉ —', {
+    const hY = py + 20;
+    obj.push(scene.add.text(W / 2, hY, '— MUSEU HISTÓRICO DE SÃO JOSÉ —', {
         fontFamily: 'Arial', fontSize: '10px', color: '#8b6914', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(52));
 
-    let sep1 = scene.add.graphics().setDepth(52);
-    sep1.lineStyle(1, 0xd4af37, 0.5);
-    sep1.lineBetween(W / 2 - 240, 135, W / 2 + 240, 135);
-    obj.push(sep1);
+    let s1 = scene.add.graphics().setDepth(52);
+    s1.lineStyle(1, 0xd4af37, 0.5);
+    s1.lineBetween(W / 2 - 270, hY + 14, W / 2 + 270, hY + 14);
+    obj.push(s1);
 
-    // Título principal
-    obj.push(scene.add.text(W / 2, 162, `FRAGMENTO  ${numFragmentos} / 3  RECUPERADO`, {
-        fontFamily: '"Cinzel", "Georgia", serif', fontSize: '26px', fontStyle: 'bold',
+    obj.push(scene.add.text(W / 2, hY + 44, `FRAGMENTO  ${numFragmentos}/3  RECUPERADO`, {
+        fontFamily: '"Cinzel", "Georgia", serif', fontSize: '28px', fontStyle: 'bold',
         color: '#d4af37', stroke: '#0d0600', strokeThickness: 4, align: 'center'
     }).setOrigin(0.5).setDepth(52));
 
-    // Subtítulo
     if (subtitulos[numFragmentos]) {
-        obj.push(scene.add.text(W / 2, 196, subtitulos[numFragmentos], {
-            fontFamily: 'Arial', fontSize: '14px', fontStyle: 'italic',
-            color: '#bf8b6e', align: 'center'
+        obj.push(scene.add.text(W / 2, hY + 82, subtitulos[numFragmentos], {
+            fontFamily: 'Arial', fontSize: '13px', color: '#bf8b6e', align: 'center'
         }).setOrigin(0.5).setDepth(52));
     }
 
-    let sep2 = scene.add.graphics().setDepth(52);
-    sep2.lineStyle(1, 0xd4af37, 0.3);
-    sep2.lineBetween(W / 2 - 200, 213, W / 2 + 200, 213);
-    obj.push(sep2);
+    let s2 = scene.add.graphics().setDepth(52);
+    const s2Y = hY + 100;
+    s2.lineStyle(1, 0xd4af37, 0.3);
+    s2.lineBetween(W / 2 - 260, s2Y, W / 2 + 260, s2Y);
+    obj.push(s2);
 
-    // Fragmentos
+    // Fragmentos lado a lado
+    const fragTop = s2Y + 12;
+    const fragBot = py + ph - 56;
+    const fragH = fragBot - fragTop;
+    const colW = pw / 3;
+
     for (let j = 1; j <= 3; j++) {
         const tk = `frag_${relicKey}_${j}`;
         const src = scene.textures.get(tk).getSourceImage();
-        const scale = Math.min(200 / src.width, 110 / src.height);
-        let piece = scene.add.image(W / 2, 290 + (j - 1) * 115, tk).setDepth(52);
-        piece.setDisplaySize(Math.round(src.width * scale), Math.round(src.height * scale));
-        if (j > numFragmentos) { piece.setTint(0x111111); piece.setAlpha(0.18); }
+        const maxW = colW - 30, maxH = fragH - 28;
+        const sc = Math.min(maxW / src.width, maxH / src.height);
+        const cx = px + (j - 0.5) * colW;
+        const cy = fragTop + fragH / 2 - 10;
+
+        let piece = scene.add.image(cx, cy, tk).setDepth(52);
+        piece.setDisplaySize(Math.round(src.width * sc), Math.round(src.height * sc));
+        if (j > numFragmentos) { piece.setTint(0x222222); piece.setAlpha(0.2); }
         obj.push(piece);
+
+        // Número do fragmento
+        obj.push(scene.add.text(cx, fragBot - 10, `${j} / 3`, {
+            fontFamily: 'Arial', fontSize: '11px', fontStyle: 'bold',
+            color: j <= numFragmentos ? '#d4af37' : '#443322'
+        }).setOrigin(0.5).setDepth(52));
     }
 
-    let sep3 = scene.add.graphics().setDepth(52);
-    sep3.lineStyle(1, 0xd4af37, 0.3);
-    sep3.lineBetween(W / 2 - 200, 572, W / 2 + 200, 572);
-    obj.push(sep3);
+    let s3 = scene.add.graphics().setDepth(52);
+    s3.lineStyle(1, 0xd4af37, 0.3);
+    s3.lineBetween(W / 2 - 260, py + ph - 44, W / 2 + 260, py + ph - 44);
+    obj.push(s3);
 
-    // Texto de continuação
-    let cont = scene.add.text(W / 2, 592, 'CLIQUE OU ESPAÇO PARA CONTINUAR A ESCAVAÇÃO', {
-        fontFamily: 'Arial', fontSize: '11px', fontStyle: 'bold',
-        color: '#8b6914', align: 'center'
+    let cont = scene.add.text(W / 2, py + ph - 24, 'CLIQUE AQUI OU APERTE ESPAÇO PARA CONTINUAR A ESCAVAÇÃO', {
+        fontFamily: 'Arial', fontSize: '11px', fontStyle: 'bold', color: '#8b6914', align: 'center'
     }).setOrigin(0.5).setDepth(52);
     obj.push(cont);
     scene.tweens.add({ targets: cont, alpha: 0.25, duration: 700, yoyo: true, repeat: -1 });
@@ -1283,66 +1639,73 @@ function mostrarCenarioCompleto(scene, cenario, aoFechar) {
     scene._revelaAtiva = true;
     const obj = [];
 
-    obj.push(scene.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.82).setDepth(50));
+    const pw = 560, ph = 640;
+    const px = W / 2 - pw / 2, py = H / 2 - ph / 2;
 
-    let sombra = scene.add.graphics().setDepth(50);
-    sombra.fillStyle(0x000000, 0.5);
-    sombra.fillRoundedRect(W / 2 - 304, 56, 620, 660, 12);
-    obj.push(sombra);
+    obj.push(scene.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.82).setDepth(50));
 
     let panel = scene.add.graphics().setDepth(51);
     panel.fillStyle(0x0d0600, 1);
-    panel.fillRoundedRect(W / 2 - 310, 50, 620, 660, 14);
+    panel.fillRoundedRect(px, py, pw, ph, 14);
     panel.fillStyle(0x1c0d02, 0.4);
-    panel.fillRoundedRect(W / 2 - 302, 58, 604, 644, 10);
+    panel.fillRoundedRect(px + 8, py + 8, pw - 16, ph - 16, 10);
     panel.lineStyle(3, 0xd4af37, 1);
-    panel.strokeRoundedRect(W / 2 - 310, 50, 620, 660, 14);
+    panel.strokeRoundedRect(px, py, pw, ph, 14);
     panel.lineStyle(1, 0xd4af37, 0.35);
-    panel.strokeRoundedRect(W / 2 - 302, 58, 604, 644, 10);
+    panel.strokeRoundedRect(px + 8, py + 8, pw - 16, ph - 16, 10);
     obj.push(panel);
 
-    obj.push(scene.add.text(W / 2, 72, '— MUSEU HISTÓRICO DE SÃO JOSÉ —', {
+    const hY = py + 20;
+    obj.push(scene.add.text(W / 2, hY, '— MUSEU HISTÓRICO DE SÃO JOSÉ —', {
         fontFamily: 'Arial', fontSize: '10px', color: '#8b6914', fontStyle: 'bold'
     }).setOrigin(0.5).setDepth(52));
     let s1 = scene.add.graphics().setDepth(52);
-    s1.lineStyle(1, 0xd4af37, 0.5); s1.lineBetween(W / 2 - 240, 85, W / 2 + 240, 85);
+    s1.lineStyle(1, 0xd4af37, 0.5); s1.lineBetween(W / 2 - 240, hY + 14, W / 2 + 240, hY + 14);
     obj.push(s1);
 
-    obj.push(scene.add.text(W / 2, 112, 'RELÍQUIA RESTAURADA', {
+    obj.push(scene.add.text(W / 2, hY + 44, 'RELÍQUIA RESTAURADA', {
         fontFamily: '"Cinzel", "Georgia", serif', fontSize: '30px', fontStyle: 'bold',
         color: '#d4af37', stroke: '#0d0600', strokeThickness: 4, align: 'center'
     }).setOrigin(0.5).setDepth(52));
 
-    obj.push(scene.add.text(W / 2, 150, nomes[idx] || '', {
-        fontFamily: '"IM Fell English", Georgia, serif', fontSize: '20px', fontStyle: 'italic',
-        color: '#bf8b6e', align: 'center'
+    obj.push(scene.add.text(W / 2, hY + 82, nomes[idx] || '', {
+        fontFamily: 'MedievalSharp, Georgia, serif', fontSize: '22px',
+        color: '#e8c890', stroke: '#0d0600', strokeThickness: 1, align: 'center'
     }).setOrigin(0.5).setDepth(52));
 
     let s2 = scene.add.graphics().setDepth(52);
-    s2.lineStyle(1, 0xd4af37, 0.3); s2.lineBetween(W / 2 - 200, 168, W / 2 + 200, 168);
+    const s2Y = hY + 102;
+    s2.lineStyle(1, 0xd4af37, 0.3); s2.lineBetween(W / 2 - 220, s2Y, W / 2 + 220, s2Y);
     obj.push(s2);
 
+    // Imagem do artefato centralizada e proporcional
+    const imgAreaTop = s2Y + 10;
+    const imgAreaBot = py + ph - 110;
+    const imgAreaH = imgAreaBot - imgAreaTop;
     const exibKey = exibKeys[idx] || exibKeys[0];
     const exibSrc = scene.textures.get(exibKey).getSourceImage();
-    const exibScale = Math.min(460 / exibSrc.width, 390 / exibSrc.height);
-    let img = scene.add.image(W / 2, 385, exibKey).setDepth(52);
+    const exibScale = Math.min((pw - 60) / exibSrc.width, imgAreaH / exibSrc.height);
+    let img = scene.add.image(W / 2, imgAreaTop + imgAreaH / 2, exibKey).setDepth(52);
     img.setDisplaySize(Math.round(exibSrc.width * exibScale), Math.round(exibSrc.height * exibScale));
     obj.push(img);
 
     let s3 = scene.add.graphics().setDepth(52);
-    s3.lineStyle(1, 0xd4af37, 0.3); s3.lineBetween(W / 2 - 200, 590, W / 2 + 200, 590);
+    const s3Y = py + ph - 98;
+    s3.lineStyle(1, 0xd4af37, 0.3); s3.lineBetween(W / 2 - 220, s3Y, W / 2 + 220, s3Y);
     obj.push(s3);
 
-    obj.push(scene.add.text(W / 2, 612, msgs[idx] || '', {
-        fontFamily: '"IM Fell English", Georgia, serif', fontSize: '16px', fontStyle: 'italic',
-        color: '#bf8b6e', align: 'center', lineSpacing: 4
+    obj.push(scene.add.text(W / 2, s3Y + 22, msgs[idx] || '', {
+        fontFamily: 'MedievalSharp, Georgia, serif', fontSize: '18px',
+        color: '#f0d080', stroke: '#0d0600', strokeThickness: 2,
+        align: 'center', lineSpacing: 6
     }).setOrigin(0.5).setDepth(52));
 
     let s4 = scene.add.graphics().setDepth(52);
-    s4.lineStyle(1, 0xd4af37, 0.3); s4.lineBetween(W / 2 - 200, 648, W / 2 + 200, 648);
+    const s4Y = py + ph - 44;
+    s4.lineStyle(1, 0xd4af37, 0.3); s4.lineBetween(W / 2 - 220, s4Y, W / 2 + 220, s4Y);
     obj.push(s4);
 
-    let cont = scene.add.text(W / 2, 666, 'CLIQUE OU ESPAÇO PARA CONTINUAR', {
+    let cont = scene.add.text(W / 2, s4Y + 18, 'CLIQUE AQUI OU APERTE ESPAÇO PARA CONTINUAR', {
         fontFamily: 'Arial', fontSize: '11px', fontStyle: 'bold', color: '#8b6914', align: 'center'
     }).setOrigin(0.5).setDepth(52);
     obj.push(cont);
@@ -1399,7 +1762,7 @@ function mostrarVitoriaFinal(scene, aoFechar) {
     }).setOrigin(0.5).setDepth(52));
 
     obj.push(scene.add.text(W / 2, 130, 'As três relíquias históricas foram resgatadas e catalogadas.', {
-        fontFamily: '"IM Fell English", Georgia, serif', fontSize: '15px', fontStyle: 'italic',
+        fontFamily: 'MedievalSharp, Georgia, serif', fontSize: '15px', fontStyle: 'normal',
         color: '#bf8b6e', align: 'center'
     }).setOrigin(0.5).setDepth(52));
 
@@ -1429,7 +1792,7 @@ function mostrarVitoriaFinal(scene, aoFechar) {
     obj.push(s3);
 
     obj.push(scene.add.text(W / 2, 595, 'Estes artefatos agora fazem parte permanente do acervo\ndo Museu Histórico de São José. Obrigado por preservar nossa história!', {
-        fontFamily: '"IM Fell English", Georgia, serif', fontSize: '17px', fontStyle: 'italic',
+        fontFamily: 'MedievalSharp, Georgia, serif', fontSize: '17px', fontStyle: 'normal',
         color: '#bf8b6e', align: 'center', lineSpacing: 6
     }).setOrigin(0.5).setDepth(52));
 
@@ -1437,7 +1800,7 @@ function mostrarVitoriaFinal(scene, aoFechar) {
     s4.lineStyle(1, 0xd4af37, 0.3); s4.lineBetween(W / 2 - 380, 652, W / 2 + 380, 652);
     obj.push(s4);
 
-    let cont = scene.add.text(W / 2, 670, 'CLIQUE, ESPAÇO OU M PARA RETORNAR AO MUSEU', {
+    let cont = scene.add.text(W / 2, 670, 'CLIQUE AQUI, APERTE ESPAÇO OU M PARA RETORNAR AO MUSEU', {
         fontFamily: 'Arial', fontSize: '11px', fontStyle: 'bold', color: '#8b6914', align: 'center'
     }).setOrigin(0.5).setDepth(52);
     obj.push(cont);
@@ -1462,7 +1825,8 @@ function pegarObjeto(ganchoObjeto, objetoAtingido) {
         objetoPuxado.setDepth(5);
         if (objetoAtingido.tipo === 'pedra_pesada') {
             let scene = ganchoObjeto.scene;
-            mostrarTextoFlutuante(scene, ganchoObjeto.x, ganchoObjeto.y, 'MUITO PESADA!', '#ff4444');
+            const msg = objetoAtingido.peso >= 6 ? 'MUITO PESADA!' : 'PESADA!';
+            mostrarTextoFlutuante(scene, ganchoObjeto.x, ganchoObjeto.y, msg, '#ff4444');
             scene.cameras.main.flash(200, 255, 30, 0);
             scene.cameras.main.shake(220, 0.005);
         }
@@ -1477,7 +1841,7 @@ let GAME_WIDTH = Phaser.Math.Clamp(Math.round(768 * aspect), 1024, 1366);
 
 const config = {
     type: Phaser.AUTO,
-    pixelArt: true, // Mantém os pixels 100% nítidos
+    pixelArt: true,
     scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH,
@@ -1485,10 +1849,9 @@ const config = {
         height: 768
     },
     parent: 'game-container',
-    backgroundColor: '#1a0800',
+    backgroundColor: '#2d0a0a',
     physics: { default: 'arcade', arcade: { debug: false } },
     fps: { target: 60, forceSetTimeOut: true },
     scene: [MenuScene, InventoryScene, TutorialScene, OptionsScene, GameScene, PauseScene]
 };
-
 new Phaser.Game(config);
