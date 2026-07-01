@@ -238,7 +238,7 @@ class InventoryScene extends Phaser.Scene {
             fragmentosSalvos = data.fragmentos || 0;
         }
 
-        const nomesReliquias = ["Máscara Ritual", "Imagem do Santo", "Tigre de Bronze"];
+        const nomesReliquias = ["Máscara Ritual", "Imagem Sacra", "Tigre de Bronze"];
         const relicKeys = ['mascara', 'santo', 'tigre'];
         const espacamento = 250;
         const startX = W / 2 - espacamento;
